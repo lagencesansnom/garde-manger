@@ -5,18 +5,19 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Factures → stock Toporder — Le Garde-Manger</title>
   <meta name="robots" content="noindex,nofollow">
+  <!-- Redirection vers l'appli Apps Script (déploiement fixe du client : ce lien ne change jamais, les mises à jour
+       passent par une nouvelle version du même déploiement). Pas d'iframe : dans une page d'un autre site, les
+       navigateurs qui bloquent les cookies tiers coupent les appels au serveur et l'appli reste sur « Chargement ». -->
+  <meta http-equiv="refresh" content="0; url=https://script.google.com/macros/s/AKfycbxjdG2-BVfyRQFM_lnYBJ_NNdMzb9PDwf5ynmaEB0H3lOuYTG3wfRzz0W9IZ7EZ2uaG/exec">
+  <script>location.replace('https://script.google.com/macros/s/AKfycbxjdG2-BVfyRQFM_lnYBJ_NNdMzb9PDwf5ynmaEB0H3lOuYTG3wfRzz0W9IZ7EZ2uaG/exec');</script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧾</text></svg>">
   <style>
     html, body { margin: 0; height: 100%; background: #F7F5F1; font-family: Inter, system-ui, sans-serif; }
-    iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
-    .fallback { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; color: #7C7469; font-size: 14px; z-index: -1; }
-    .fallback a { color: #3D6B35; }
+    body { display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; box-sizing: border-box; color: #7C7469; font-size: 14px; }
+    a { color: #3D6B35; }
   </style>
 </head>
 <body>
-  <!-- L'appli Apps Script (déploiement fixe du client) : ce lien ne change jamais, les mises à jour passent par une nouvelle version du même déploiement. -->
-  <div class="fallback"><p>Chargement de l'application…<br><br>Si rien ne s'affiche, <a href="https://script.google.com/macros/s/AKfycbxjdG2-BVfyRQFM_lnYBJ_NNdMzb9PDwf5ynmaEB0H3lOuYTG3wfRzz0W9IZ7EZ2uaG/exec" target="_top">ouvrez-la directement</a>.</p></div>
-  <iframe src="https://script.google.com/macros/s/AKfycbxjdG2-BVfyRQFM_lnYBJ_NNdMzb9PDwf5ynmaEB0H3lOuYTG3wfRzz0W9IZ7EZ2uaG/exec"
-          title="Factures → stock Toporder" allow="clipboard-write" allowfullscreen></iframe>
+  <p>Ouverture de l'application…<br><br>Si rien ne se passe, <a href="https://script.google.com/macros/s/AKfycbxjdG2-BVfyRQFM_lnYBJ_NNdMzb9PDwf5ynmaEB0H3lOuYTG3wfRzz0W9IZ7EZ2uaG/exec">cliquez ici</a>.</p>
 </body>
 </html>
