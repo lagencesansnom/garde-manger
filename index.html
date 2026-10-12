@@ -1,23 +1,2019 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="UTF-8">
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Factures → stock Toporder — Le Garde-Manger</title>
-  <meta name="robots" content="noindex,nofollow">
-  <!-- Redirection vers l'appli Apps Script (déploiement fixe du client : ce lien ne change jamais, les mises à jour
-       passent par une nouvelle version du même déploiement). Pas d'iframe : dans une page d'un autre site, les
-       navigateurs qui bloquent les cookies tiers coupent les appels au serveur et l'appli reste sur « Chargement ». -->
-  <meta http-equiv="refresh" content="0; url=https://script.google.com/macros/s/AKfycbxjdG2-BVfyRQFM_lnYBJ_NNdMzb9PDwf5ynmaEB0H3lOuYTG3wfRzz0W9IZ7EZ2uaG/exec">
-  <script>location.replace('https://script.google.com/macros/s/AKfycbxjdG2-BVfyRQFM_lnYBJ_NNdMzb9PDwf5ynmaEB0H3lOuYTG3wfRzz0W9IZ7EZ2uaG/exec');</script>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧾</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Bricolage+Grotesque:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
-    html, body { margin: 0; height: 100%; background: #F7F5F1; font-family: Inter, system-ui, sans-serif; }
-    body { display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; box-sizing: border-box; color: #7C7469; font-size: 14px; }
-    a { color: #3D6B35; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #F7F5F1; --white: #FFFFFF; --border: #E7E3DB; --text: #1A1A1A; --muted: #7C7469; --subtle: #F1ECE4;
+      --accent: #3D6B35; --accent-dark: #2E5228; --accent-soft: #E8F0E4;
+      --ok: #3A7D44; --ok-soft: #E7F1E7; --warn: #9A6B00; --warn-soft: #FBF0D9; --error: #B3311F; --error-soft: #FBE6E2;
+      --info: #245C8F; --info-soft: #E6EEF6;
+      --font-d: 'Bricolage Grotesque', sans-serif; --font-b: 'Inter', sans-serif;
+      --r-sm: 8px; --r-md: 12px; --r-lg: 16px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-b); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; padding: 24px 16px 96px; }
+    .container { max-width: 1120px; margin: 0 auto; }
+    .hidden { display: none !important; }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+    a { color: var(--accent); }
+
+    /* Header */
+    .app-header { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+    .app-titles { flex: 1; min-width: 220px; }
+    .app-titles h1 { font-family: var(--font-d); font-size: clamp(1.3rem, 3.4vw, 1.75rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; }
+    .app-titles h1 span { color: var(--accent); }
+    .app-titles p { color: var(--muted); font-size: 13px; margin-top: 3px; }
+    .cat-chip { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+    /* Panels */
+    .panel { background: var(--white); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; margin-bottom: 16px; }
+    .panel-head { display: flex; align-items: center; gap: 9px; font-family: var(--font-d); font-size: 16px; font-weight: 700; margin-bottom: 14px; flex-wrap: wrap; }
+    .panel-head .spacer { flex: 1; }
+    .step-badge { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; font-family: var(--font-b); }
+    .label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; display: block; margin-bottom: 4px; }
+
+    /* Controls */
+    button { font-family: var(--font-b); cursor: pointer; }
+    .btn { font-size: 13px; font-weight: 600; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--white); color: var(--text); padding: 8px 14px; transition: background .15s, border-color .15s; white-space: nowrap; }
+    .btn:hover { border-color: #CFC8BB; background: var(--subtle); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+    .btn-lg { font-size: 15px; padding: 12px 22px; }
+    .btn-danger { background: var(--error); border-color: var(--error); color: #fff; }
+    .btn-danger:hover { background: #8F2718; border-color: #8F2718; }
+
+    /* Fenêtres de confirmation / d'erreur (à la place des popups du navigateur) */
+    .dlg-bg { z-index: 70; align-items: center; }
+    .dlg { max-width: 480px; box-shadow: 0 18px 48px rgba(0,0,0,.18); }
+    .dlg-head { display: flex; gap: 12px; align-items: flex-start; }
+    .dlg-head h3 { margin: 2px 0 0; line-height: 1.3; }
+    .dlg-ic { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; background: var(--info-soft); color: var(--info); }
+    .dlg.warn .dlg-ic { background: var(--warn-soft); color: var(--warn); }
+    .dlg.error .dlg-ic, .dlg.danger .dlg-ic { background: var(--error-soft); color: var(--error); }
+    .dlg-body { margin: 12px 0 0 42px; font-size: 13.5px; color: #3A3632; display: flex; flex-direction: column; gap: 8px; }
+    .dlg-body ul { margin-left: 18px; }
+    .dlg-body li { margin: 2px 0; }
+    .busy-bg { z-index: 80; align-items: center; }
+    .busy { max-width: 400px; text-align: center; padding: 28px 24px; box-shadow: 0 18px 48px rgba(0,0,0,.18); }
+    .busy .spinner { width: 34px; height: 34px; border-width: 3px; margin-bottom: 14px; }
+    .busy p { font-size: 13px; color: var(--muted, #6B6560); margin-top: 6px; }
+    .btn-sm { font-size: 12px; padding: 5px 10px; }
+    .btn-link { background: none; border: none; color: var(--accent); font-size: 12px; font-weight: 600; padding: 2px 0; text-decoration: underline; }
+    input[type=text], input[type=number], input[type=date], input[type=search], select {
+      font-family: var(--font-b); font-size: 13px; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 7px 9px; background: var(--white); color: var(--text); min-width: 0;
+    }
+    input:focus, select:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+    .field { display: flex; flex-direction: column; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+
+    /* Drop zone */
+    .drop { border: 2px dashed #CFC8BB; border-radius: var(--r-md); padding: 28px 16px; text-align: center; cursor: pointer; transition: background .15s, border-color .15s; flex: 1; min-width: 240px; }
+    .drop:hover, .drop.over { background: var(--accent-soft); border-color: var(--accent); }
+    .drop strong { font-size: 15px; display: block; margin-bottom: 4px; }
+
+    /* Queue */
+    .queue { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .q-item { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border); border-radius: 100px; padding: 5px 12px; font-size: 12.5px; background: var(--white); cursor: pointer; max-width: 100%; }
+    .q-item.active { border-color: var(--accent); background: var(--accent-soft); }
+    .q-item .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #CFC8BB; flex-shrink: 0; }
+    .dot.lecture { background: var(--info); animation: pulse 1s infinite; }
+    .dot.pret { background: var(--warn); }
+    .dot.genere { background: var(--ok); }
+    .dot.erreur { background: var(--error); }
+    @keyframes pulse { 50% { opacity: .3; } }
+
+    /* Banners */
+    .banner { border-radius: var(--r-md); padding: 12px 14px; margin-bottom: 12px; font-size: 13.5px; display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+    .banner b { font-weight: 700; }
+    .banner.error { background: var(--error-soft); color: #7A1F12; }
+    .banner.warn { background: var(--warn-soft); color: #6B4A00; }
+    .banner.ok { background: var(--ok-soft); color: #25502C; }
+    .banner.info { background: var(--info-soft); color: #173E61; }
+    .banner .grow { flex: 1; min-width: 200px; }
+
+    /* Invoice header */
+    .inv-head { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .stat { background: var(--subtle); border-radius: var(--r-md); padding: 8px 14px; font-size: 13px; }
+    .stat b { font-size: 18px; font-family: var(--font-d); margin-right: 4px; }
+    button.stat { border: 2px solid transparent; cursor: pointer; font: inherit; color: inherit; }
+    button.stat:hover:not(:disabled) { border-color: var(--border); }
+    button.stat.active { background: var(--white); border-color: var(--muted); }
+    button.stat.ok.active { border-color: var(--ok); } button.stat.warn.active { border-color: var(--warn); }
+    button.stat:disabled { cursor: default; opacity: .6; }
+    .stat.ok b { color: var(--ok); } .stat.warn b { color: var(--warn); } .stat.muted b { color: var(--muted); }
+
+    /* Table */
+    .group-title { font-family: var(--font-d); font-weight: 700; font-size: 15px; margin: 18px 0 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-md); }
+    table { width: 100%; border-collapse: collapse; min-width: 860px; }
+    th { text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; padding: 8px 10px; background: var(--subtle); border-bottom: 1px solid var(--border); }
+    td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 13px; }
+    tr:last-child td { border-bottom: none; }
+    td.num input { width: 84px; text-align: right; }
+    td input[type=date] { width: 138px; }
+    .lib { font-weight: 600; }
+    .sub { font-size: 11.5px; color: var(--muted); }
+    .prod { font-weight: 500; }
+    .prod.none { color: var(--muted); font-style: italic; font-weight: 400; }
+    .badge { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 100px; margin: 0 4px 3px 0; white-space: nowrap; }
+    .badge.ok { background: var(--ok-soft); color: var(--ok); }
+    .badge.block { background: var(--error-soft); color: var(--error); }
+    .badge.info { background: var(--warn-soft); color: var(--warn); }
+    .badge.grey { background: var(--subtle); color: var(--muted); }
+    .msg { font-size: 12px; margin-top: 3px; }
+    .msg.block { color: var(--error); } .msg.info { color: var(--warn); }
+    .actions { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
+    .alloc { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+    .alloc label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .alloc input { width: 74px; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+    .tab { background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 14px; font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: -1px; }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab .count { background: var(--warn-soft); color: var(--warn); border-radius: 100px; padding: 1px 7px; font-size: 11px; margin-left: 4px; }
+    details summary { cursor: pointer; font-family: var(--font-d); font-weight: 700; font-size: 15px; margin: 18px 0 8px; }
+
+    /* Footer bar */
+    .gen-bar { position: sticky; bottom: 12px; background: var(--white); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 14px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; box-shadow: 0 6px 24px rgba(0,0,0,.08); margin-top: 18px; }
+    .gen-bar .grow { flex: 1; min-width: 200px; font-size: 13.5px; }
+
+    /* Modal */
+    .modal-bg { position: fixed; inset: 0; background: rgba(26,26,26,.45); display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 50; overflow-y: auto; }
+    .modal { background: var(--white); border-radius: var(--r-lg); padding: 20px; width: 100%; max-width: 620px; }
+    .modal h3 { font-family: var(--font-d); font-size: 17px; margin-bottom: 4px; }
+    .results { max-height: 340px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--r-md); margin-top: 10px; }
+    .res { padding: 9px 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
+    .res:last-child { border-bottom: none; }
+    .res:hover { background: var(--subtle); }
+    .res.sel { background: var(--accent-soft); box-shadow: inset 4px 0 0 var(--accent); }
+    .res.sel .prod::before { content: '✓ '; color: var(--accent); font-weight: 700; }
+    .modal-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+
+    .spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; display: inline-block; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading { padding: 40px; text-align: center; color: var(--muted); }
+    /* Tableau de bord */
+    .dash-filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; }
+    .seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
+    .seg button { border: none; background: var(--white); padding: 7px 11px; font-size: 13px; color: var(--muted); font-weight: 600; }
+    .seg button + button { border-left: 1px solid var(--border); }
+    .seg button.on { background: var(--accent-soft); color: var(--accent-dark); }
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .kpi { border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px 16px; background: var(--white); }
+    .kpi .k-name { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .kpi .k-val { font-family: var(--font-d); font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+    .kpi .k-sub { font-size: 12.5px; color: var(--muted); }
+    .sw { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; display: inline-block; }
+    .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .chart { position: relative; width: 100%; }
+    .chart svg { display: block; }
+    .chart text { font-family: var(--font-b); font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+    .tip { position: absolute; pointer-events: none; background: var(--white); border: 1px solid var(--border); border-radius: var(--r-sm); box-shadow: 0 6px 18px rgba(0,0,0,.10); padding: 8px 10px; font-size: 12.5px; min-width: 170px; z-index: 5; }
+    .tip .t-h { font-weight: 700; margin-bottom: 4px; }
+    .tip .t-r { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
+    .tip .t-r > span:first-child { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+    td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    tr.click { cursor: pointer; }
+    tr.click:hover td { background: var(--subtle); }
+    .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: #fff; padding: 10px 18px; border-radius: 100px; font-size: 13px; z-index: 60; max-width: calc(100% - 32px); }
   </style>
 </head>
 <body>
-  <p>Ouverture de l'application…<br><br>Si rien ne se passe, <a href="https://script.google.com/macros/s/AKfycbxjdG2-BVfyRQFM_lnYBJ_NNdMzb9PDwf5ynmaEB0H3lOuYTG3wfRzz0W9IZ7EZ2uaG/exec">cliquez ici</a>.</p>
+<div class="container">
+  <header class="app-header">
+    <div class="app-titles">
+      <h1>Factures fournisseurs → <span>stock Toporder</span></h1>
+      <p>Le Garde-Manger — déposez une facture, vérifiez les lignes, téléchargez le fichier à importer dans Toporder.</p>
+    </div>
+    <div class="cat-chip" id="catChip"><span class="spinner"></span> Chargement…</div>
+  </header>
+
+  <div id="app"><div class="loading"><span class="spinner"></span> Chargement du catalogue…</div></div>
+</div>
+
+<input type="file" id="matrixInput" accept=".xlsx" class="hidden">
+<input type="file" id="fileInput" accept="application/pdf,image/jpeg,image/png,image/webp" multiple class="hidden">
+<div id="modalRoot"></div>
+<div id="dialogRoot"></div>
+<div id="busyRoot"></div>
+
+<script>
+// =================================================================
+//  État
+// =================================================================
+const S = {
+  init: null,          // données serveur (catalogue, correspondances, durées, paramètres…)
+  lieu: '',            // lieu par défaut choisi
+  queue: [],           // factures déposées
+  current: -1,
+  idx: null            // index de rapprochement
+};
+const ALERTS = {
+  INCONNU:      { block: true,  label: 'Produit inconnu', msg: "Ce code-barres n'existe pas dans Toporder : créez le produit dans Toporder puis mettez à jour le catalogue, ou associez-le à un produit existant." },
+  NOM_EAN_DIFF: { block: true,  label: 'Code-barres différent', msg: "Un produit au nom très proche existe avec un autre code-barres (le fournisseur l'a peut-être changé). Vérifiez, puis associez-le si c'est le même." },
+  A_ASSOCIER:   { block: true,  label: 'À associer', msg: "Pas de code-barres : choisissez le produit Toporder correspondant. Le choix sera retenu pour les prochaines factures." },
+  A_CREER:      { block: true,  label: 'À créer', msg: "Fiche produit prête. Générez le fichier de création (en haut de la facture), importez-le dans Toporder, puis mettez à jour le catalogue : la ligne sera reconnue." },
+  UNITE:        { block: true,  label: 'Unité', msg: '' },
+  AVOIR:        { block: true,  label: 'Avoir', msg: "Ligne d'avoir : aucun mouvement de stock (produit non vendable). Si c'est un produit manquant, corrigez le stock à la main dans Toporder." },
+  CONFIANCE:    { block: true,  label: 'À relire', msg: '' },
+  DLC:          { block: true,  label: 'DLC', msg: "Pas de DLC sur la facture : saisissez-la, enregistrez une durée de conservation, ou importez sans DLC." },
+  REPARTITION:  { block: true,  label: 'Répartition', msg: '' },
+  DEJA_BL:      { block: true,  label: 'BL déjà importé', msg: '' },
+  PRIX:         { block: false, label: 'Prix', msg: '' },
+  CONVERSION:   { block: false, label: 'Conversion', msg: '' },
+  LIEU:         { block: false, label: 'Boutique lue', msg: '' },
+  NOUVEAU:      { block: true,  label: 'Nouveau produit', msg: "Produit créé depuis l'appli, pas encore de Clé Toporder : importez la nouvelle matrice (Stock → Import de stock dans Toporder) pour que la ligne entre dans le fichier. S'il est dans Toporder sous un autre nom : « Changer »." }
+};
+const NON_LIVRE_RE = /rupture|non[\s-]*livr|manquant|reliquat|[ée]puis[ée]|disponibilit[ée]\s+pr[ée]vue|[àa]\s+livrer|non\s+disponible|indisponible/i;
+const KIND_LABEL = { avoir: 'avoir', non_livre: 'non livré', frais: 'frais', autre: 'autre' };
+const kindMotif = (L) => L.kind === 'non_livre' ? 'Non livré' + (L.src.remarque ? ' : ' + L.src.remarque : '') + ' — rien n\'entre en stock'
+  : L.kind === 'avoir' ? ALERTS.AVOIR.msg : 'Frais / taxe : ignoré';
+
+// =================================================================
+//  Utilitaires
+// =================================================================
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtN = (x, d = 2) => (x == null || isNaN(x)) ? '' : Number(x).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: d });
+const fmtE = (x) => (x == null || isNaN(x)) ? '—' : Number(x).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + ' €';
+const isoToFr = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
+const validIso = (iso) => /^\d{4}-\d{2}-\d{2}$/.test(iso || '') && !isNaN(new Date(iso + 'T00:00:00'));
+const addDays = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + Number(n)); return d.toISOString().slice(0, 10); };
+const round = (x, d) => { const p = Math.pow(10, d); return Math.round(x * p) / p; };
+const num = (v) => { if (v === '' || v == null) return null; const n = Number(String(v).replace(',', '.').replace(/\s/g, '')); return isNaN(n) ? null : n; };
+
+function store(key, val) { try { if (val === undefined) return localStorage.getItem(key); localStorage.setItem(key, val); } catch (e) { return null; } }
+
+function toast(text) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = text;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 3500);
+}
+
+// Fenêtre de confirmation / d'information de l'appli. Remplace confirm() / alert() du navigateur, qui affichent
+// l'adresse technique Google (« Une page intégrée à l'adresse …googleusercontent.com indique »).
+// body = HTML déjà échappé. Résout true (bouton principal, Entrée), 'alt' (bouton secondaire facultatif)
+// ou false (Annuler, Échap, clic à côté).
+function dialog({ title, body = '', ok = 'OK', cancel = '', alt = '', tone = 'info' }) {
+  return new Promise(resolve => {
+    let done = false;
+    const close = (v) => { if (done) return; done = true; $('dialogRoot').innerHTML = ''; document.removeEventListener('keydown', onKey); resolve(v); };
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); close(false); } else if (e.key === 'Enter') { e.preventDefault(); const f = document.activeElement && document.activeElement.id; close(f === 'dlgNo' ? false : f === 'dlgAlt' ? 'alt' : true); } };
+    $('dialogRoot').innerHTML = `<div class="modal-bg dlg-bg" id="dlgBg"><div class="modal dlg ${tone}" role="${cancel ? 'alertdialog' : 'dialog'}" aria-modal="true" aria-labelledby="dlgT">
+      <div class="dlg-head"><span class="dlg-ic" aria-hidden="true">${tone === 'info' ? 'i' : '!'}</span><h3 id="dlgT">${esc(title)}</h3></div>
+      ${body ? `<div class="dlg-body">${body}</div>` : ''}
+      <div class="modal-foot">${cancel ? `<button class="btn" id="dlgNo">${esc(cancel)}</button>` : ''}
+        ${alt ? `<button class="btn" id="dlgAlt">${esc(alt)}</button>` : ''}
+        <button class="btn ${tone === 'danger' ? 'btn-danger' : 'btn-primary'}" id="dlgOk">${esc(ok)}</button></div></div></div>`;
+    $('dlgOk').onclick = () => close(true);
+    if (cancel) $('dlgNo').onclick = () => close(false);
+    if (alt) $('dlgAlt').onclick = () => close('alt');
+    $('dlgBg').onclick = (e) => { if (e.target.id === 'dlgBg') close(false); };
+    document.addEventListener('keydown', onKey);
+    $('dlgOk').focus();
+  });
+}
+// Fenêtre d'attente bloquante (au-dessus de tout) : busy('Titre', 'étape') l'affiche ou la met à jour, busy() la ferme.
+function busy(title, step = '') {
+  if (!title) { $('busyRoot').innerHTML = ''; return; }
+  $('busyRoot').innerHTML = `<div class="modal-bg busy-bg"><div class="modal busy" role="status" aria-live="polite">
+    <span class="spinner"></span><h3>${esc(title)}</h3>${step ? `<p>${esc(step)}</p>` : ''}</div></div>`;
+}
+function showError(title, err) {
+  return dialog({ title, tone: 'error', body: `<p>${esc(err && err.message || err)}</p>`, ok: 'Fermer' });
+}
+
+// Lieu tel qu'affiché : alias (ville, utilisé dans les fichiers Toporder) + nom de la boutique dans Toporder.
+function lieuLabel(l) { const n = (S.init.lieuxNoms || {})[l]; return n ? `${l} — ${n}` : l; }
+
+// Servi par Apps Script : google.script.run. Servi par GitHub Pages (lien donné au client) : POST vers le
+// déploiement fixe du client (doPost de Code.gs). Corps en text/plain pour éviter la pré-vérification CORS.
+const EXEC_URL = 'https://script.google.com/macros/s/AKfycbxjdG2-BVfyRQFM_lnYBJ_NNdMzb9PDwf5ynmaEB0H3lOuYTG3wfRzz0W9IZ7EZ2uaG/exec';
+async function call(fn, ...args) {
+  if (!(window.google && google.script && google.script.run)) {
+    let res;
+    try {
+      res = await fetch(EXEC_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn, args }) });
+    } catch (e) { throw new Error('Serveur injoignable : vérifiez la connexion internet et réessayez.'); }
+    let out;
+    try { out = await res.json(); } catch (e) { throw new Error('Réponse inattendue du serveur (' + res.status + '). Réessayez dans un instant.'); }
+    if (!out.ok) throw new Error(String(out.error || 'Erreur inconnue').replace(/^(Exception|Error):\s*/i, ''));
+    return out.result;
+  }
+  return new Promise((resolve, reject) => {
+    google.script.run.withSuccessHandler(resolve).withFailureHandler(err => reject(new Error(String(err && err.message || err).replace(/^(Exception|Error):\s*/i, ''))))[fn](...args);
+  });
+}
+
+// Normalisations — mêmes règles que Code.gs
+function normLabel(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+const LEGAL = ['sas', 'sasu', 'sarl', 'eurl', 'sa', 'sca', 'scea', 'earl', 'gaec', 'ste', 'societe', 'ets', 'etablissements'];
+function normEmetteur(s) { return normLabel(s).split(' ').filter(w => LEGAL.indexOf(w) < 0).join(' ').toUpperCase(); }
+function normEan(v) {
+  if (v === '' || v == null) return '';
+  let s = String(v).replace(/\D/g, '');
+  if (s.length === 14 && s[0] === '0') s = s.slice(1);
+  if (s.length < 8 || s.length > 13 || /^0+$/.test(s)) return '';
+  // Moins de 8 chiffres significatifs : pas un vrai code-barres (ex. réf. 93901 imprimée « 0000000939015 »).
+  if (s.replace(/^0+/, '').length < 8) return '';
+  return s.padStart(13, '0');
+}
+
+// N° de BL : mêmes règles que normBl_ dans Code.gs
+function normBl(s) { return String(s == null ? '' : s).toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^(BONDELIVRAISON|LIVRAISON|BL)(NO?(?=\d))?/, '').replace(/^0+/, ''); }
+
+// Similarité de noms (suggestions uniquement — jamais d'association automatique par le nom)
+const STOP = new Set(['de', 'du', 'des', 'la', 'le', 'les', 'l', 'd', 'au', 'aux', 'a', 'et', 'en', 'sous', 'vide', 'ss', 'par', 'x', 'avec', 'sans', 'bio']);
+function tokens(s) { return normLabel(s).split(' ').filter(w => w.length > 1 && !STOP.has(w)).map(w => w.length > 4 ? w.replace(/s$/, '') : w); }
+function trigrams(s) { const t = ' ' + normLabel(s) + ' '; const out = new Set(); for (let i = 0; i < t.length - 2; i++) out.add(t.slice(i, i + 3)); return out; }
+function dice(a, b) { if (!a.size || !b.size) return 0; let n = 0; a.forEach(x => { if (b.has(x)) n++; }); return 2 * n / (a.size + b.size); }
+function similarity(q, p) { return 0.5 * dice(q.tok, p._tok) + 0.5 * dice(q.tri, p._tri); }
+// w = poids d'une pièce lu sur le document : les produits du même format remontent, les autres formats descendent.
+// s = score de classement, sim = similarité des noms seule.
+function suggest(label, n = 3, w = null) {
+  const q = { tok: new Set(tokens(label)), tri: trigrams(label) };
+  return S.init.produits.map(p => {
+    const sim = similarity(q, p);
+    const pw = p._w !== undefined ? p._w : nameWeight(p.n);
+    return { p, sim, s: sim + (w && pw ? (sameWeight(pw, w) ? 0.25 : -0.25) : 0) };
+  }).sort((a, b) => b.s - a.s).slice(0, n);
+}
+
+// ── Format (poids) : distingue « pain bis 500 g » et « pain bis 1 kg » quand la désignation ne le dit pas ──
+// Poids écrit dans un nom (« Pain bis 500g », « Saucisses 1,2 kg ») → kg.
+function nameWeight(s) {
+  const m = /(\d+(?:[.,]\d+)?)\s?(kg|kilos?|grs?|g)\b/i.exec(String(s || ''));
+  if (!m) return null;
+  const v = Number(m[1].replace(',', '.'));
+  return v > 0 ? round(/^k/i.test(m[2]) ? v : v / 1000, 3) : null;
+}
+// Poids d'une pièce de la ligne : lu par l'IA, sinon poids total / nombre de pièces, sinon écrit dans la désignation.
+function lineWeight(src) {
+  const w = num(src.poids_unitaire_kg);
+  if (w > 0) return round(w, 3);
+  const pt = num(src.poids_total_kg), n = num(src.nombre_pieces) || (src.unite === 'U' ? num(src.quantite) : null);
+  if (pt > 0 && n > 0) return round(pt / n, 3);
+  return src.unite === 'COLIS' ? null : nameWeight(src.libelle);
+}
+const sameWeight = (a, b) => Math.abs(a - b) <= 0.02 * Math.max(a, b);
+const fmtW = (kg) => kg >= 1 ? fmtN(kg, 3) + ' kg' : fmtN(kg * 1000, 0) + ' g';
+// Conversion d'unité déduite du poids / du nombre de pièces lus sur le document (ex. 8 pains = 4 kg).
+// Colis : produit Toporder vendu par lot (« … x1000 » pour un « colis de 1000 ») → 1 colis = 1 article ;
+// sinon nombre d'unités du colis écrit sur la ligne (« colis de 6 », « carton de 12 ») → 1 colis = N articles.
+function autoConv(src, w, prodU, prodName) {
+  const q0 = Number(src.quantite), mt = num(src.montant_ht), pu0 = num(src.prix_unitaire_ht_net);
+  const total = mt != null ? Math.abs(mt) : (pu0 != null && q0 > 0 ? pu0 * q0 : null);
+  if (prodU === 'U' && src.unite === 'COLIS' && q0 > 0) {
+    const lib = String(src.libelle || '');
+    const lot = /\bx\s?(\d+)\b/i.exec(String(prodName || ''));
+    const m = /\b(?:colis|carton|caisse|lot|pack|paquet|sachet|boite|boîte)s?\s+(?:de\s+)?(\d+)(?!\d)/i.exec(lib) || /\bx\s?(\d+)\s?(?:u|pc|pcs|pi[eè]ces?)?\b/i.exec(lib);
+    const nCol = m ? Number(m[1]) : (num(src.nombre_pieces) > q0 ? num(src.nombre_pieces) / q0 : null);
+    if (lot && new RegExp('(^|\\D)' + lot[1] + '(?!\\d)').test(lib)) return { qty: q0, pu: total != null ? total / q0 : null, note: `1 colis = 1 article (le produit Toporder est le lot « x${lot[1]} »)` };
+    if (nCol > 1) return { qty: q0 * nCol, pu: total != null ? total / (q0 * nCol) : null, note: `${fmtN(q0, 3)} colis de ${fmtN(nCol, 0)} = ${fmtN(q0 * nCol, 0)} article(s)` };
+  }
+  if (prodU === 'KG' && src.unite !== 'KG') {
+    const kg = num(src.poids_total_kg) || (w && src.unite === 'U' && q0 > 0 ? w * q0 : null);
+    if (kg > 0) return { qty: kg, pu: total != null ? total / kg : null, note: `${fmtN(q0, 3)} ${unitLabel(src.unite)} = ${fmtN(kg, 3)} kg (poids lu sur le document)` };
+  }
+  if (prodU === 'U' && src.unite === 'KG' && q0 > 0) {
+    let n = num(src.nombre_pieces), approx = false;
+    if (!(n > 0) && w) { const x = q0 / w; if (Math.round(x) >= 1 && Math.abs(x - Math.round(x)) <= 0.1) { n = Math.round(x); approx = true; } }
+    if (n > 0) return { qty: n, pu: total != null ? total / n : null, note: `${fmtN(q0, 3)} kg = ${approx ? 'environ ' : ''}${fmtN(n, 0)} article(s)${approx ? ` de ${fmtW(w)}` : ''}` };
+  }
+  return null;
+}
+// Boutique écrite sur la ligne : choisie par l'IA, sinon reconnue dans l'observation (« CHATO » → Châteaubriant).
+function lineLieu(src) {
+  if (S.init.lieux.indexOf(src.lieu) >= 0) return src.lieu;
+  const words = normLabel(src.observation).split(' ');
+  const hits = S.init.lieux.filter(lx => { const k = normLabel(lx).replace(/ /g, '').slice(0, 4); return k.length === 4 && words.some(w => w.startsWith(k)); });
+  return hits.length === 1 ? hits[0] : '';
+}
+
+// =================================================================
+//  Chargement
+// =================================================================
+function buildIndex() {
+  const byEan = {}, byKey = {};
+  S.init.produits.forEach(p => {
+    p._tok = new Set(tokens(p.n)); p._tri = trigrams(p.n); p._w = nameWeight(p.n);
+    if (p.e && !byEan[p.e]) byEan[p.e] = p;
+    if (!byKey[p.k]) byKey[p.k] = p;
+  });
+  const corr = {};
+  S.init.correspondances.forEach(c => {
+    corr[c.ref ? `${c.em}|ref|${c.ref}` : `${c.em}|lib|${c.lib}`] = c;
+  });
+  S.idx = { byEan, byKey, corr };
+}
+
+function load() {
+  call('getInitData').then(data => {
+    S.init = data; buildIndex();
+    const saved = store('gm_lieu');
+    S.lieu = data.lieux.indexOf(saved) >= 0 ? saved : (data.lieux[0] || '');
+    render();
+    loadDashboard();   // préchargé en arrière-plan : historique et tableau de bord s'ouvrent sans attente
+  }).catch(err => {
+    $('app').innerHTML = `<div class="banner error"><div class="grow"><b>Impossible de charger l'application.</b><br>${esc(err.message)}</div></div>`;
+    $('catChip').textContent = '';
+  });
+}
+
+// =================================================================
+//  Catalogue (matrice Toporder)
+// =================================================================
+$('matrixInput').addEventListener('change', async (ev) => {
+  const f = ev.target.files[0]; ev.target.value = '';
+  if (!f) return;
+  // La fenêtre « importez la nouvelle matrice » est fermée tout de suite et l'attente s'affiche par-dessus tout
+  // (avant : seule la pastille du catalogue, cachée derrière la fenêtre, montrait le chargement → on croyait à un bug).
+  closeModal();
+  busy('Mise à jour du catalogue…', 'Lecture du fichier ' + f.name);
+  $('catChip').innerHTML = '<span class="spinner"></span> Lecture du fichier…';
+  try {
+    const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+    const ws = wb.Sheets['Stock'];
+    const first = wb.Sheets[wb.SheetNames[0]];
+    const firstRows = first ? XLSX.utils.sheet_to_json(first, { header: 1, raw: true, defval: '' }) : [];
+    if (!ws && firstRows[0] && String(firstRows[0][0]).trim() === 'Nom du produit') {
+      // Fichier d'import catalogue (VF_Matrice…) : sert de référentiel catégories / TVA.
+      busy('Mise à jour du référentiel…', 'Enregistrement des produits');
+      S.init = await call('importerReferentiel', firstRows);
+      buildIndex();
+      busy(); render();
+      await dialog({ title: 'Référentiel produits mis à jour', ok: 'OK',
+        body: `<p>✓ <b>${fmtN(S.init.referentiel.info.produits, 0)}</b> produits chargés : la catégorie et la TVA des nouveaux produits seront proposées à partir de ce fichier.</p>` });
+      return;
+    }
+    if (!ws) throw new Error("Onglet « Stock » introuvable : exportez la matrice depuis Toporder (Stock → Import de stock).");
+    const stock = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+    const sup = wb.Sheets['suppliers'] ? XLSX.utils.sheet_to_json(wb.Sheets['suppliers'], { header: 1, raw: true, defval: '' }).map(r => r[0]) : [];
+    busy('Mise à jour du catalogue…', `Enregistrement de ${fmtN(Math.max(stock.length - 1, 0), 0)} lignes, cela peut prendre jusqu'à une minute`);
+    $('catChip').innerHTML = '<span class="spinner"></span> Enregistrement du catalogue…';
+    S.init = await call('importerMatrice', stock, sup);
+    buildIndex();
+    if (S.init.lieux.indexOf(S.lieu) < 0) S.lieu = S.init.lieux[0] || '';
+    busy('Mise à jour du catalogue…', 'Recherche des produits créés dans la nouvelle matrice');
+    const linked = await linkCreatedProducts();
+    S.queue.forEach(inv => { if (inv.status === 'pret') evaluate(inv); });
+    const missing = [...new Set(S.queue.filter(q => q.status === 'pret').flatMap(q => q.lines.filter(L => L.creation || (L.match && L.match.prov)).map(L => L.creation ? fullName(L.creation) : L.match.n)))];
+    busy(); render();
+    const info = S.init.catalogueInfo;
+    const done = `<p>✓ <b>${fmtN(info.produits, 0)}</b> produits · ${info.lieux} lieu${info.lieux > 1 ? 'x' : ''}, mis à jour le ${esc(info.date)}.</p>`
+      + (linked ? `<p>✓ <b>${linked}</b> produit${linked > 1 ? 's' : ''} créé${linked > 1 ? 's' : ''} reconnu${linked > 1 ? 's' : ''} : ${linked > 1 ? 'leurs lignes entrent' : 'sa ligne entre'} maintenant dans le fichier de stock.</p>` : '');
+    if (missing.length) {
+      await dialog({ tone: 'warn', ok: 'Compris',
+        title: `Catalogue mis à jour, mais ${missing.length} produit${missing.length > 1 ? 's' : ''} créé${missing.length > 1 ? 's' : ''} pas retrouvé${missing.length > 1 ? 's' : ''}`,
+        body: `${done}<ul>${missing.map(m => `<li>${esc(m)}</li>`).join('')}</ul>
+          <p>Vérifiez qu'${missing.length > 1 ? 'ils ont' : 'il a'} bien été importé${missing.length > 1 ? 's' : ''} dans Toporder et que la matrice a été exportée après l'import.
+          Si ${missing.length > 1 ? 'ils y sont' : 'il y est'} sous un autre nom, cliquez sur la ligne : « Déjà dans Toporder : l'associer » (ou « Changer »).</p>` });
+    } else {
+      await dialog({ title: 'Catalogue mis à jour', ok: 'OK', body: done });
+    }
+  } catch (err) {
+    busy();
+    await showError('Mise à jour du catalogue impossible', err);
+  }
+  render();
+});
+
+function renderCatChip() {
+  const i = S.init.catalogueInfo;
+  $('catChip').innerHTML = `
+    <span>${i ? `Catalogue : <b>${fmtN(i.produits, 0)}</b> produits · ${i.lieux} lieux · mis à jour le ${esc(i.date)}` : '<b style="color:var(--error)">Catalogue vide</b>'}
+      ${S.init.referentiel.info ? '' : ` · <span title="Déposez le fichier d'import catalogue Toporder (VF_Matrice…) avec le même bouton : il sert à proposer la catégorie et la TVA des nouveaux produits.">référentiel catégories absent</span>`}</span>
+    <button class="btn btn-sm" onclick="document.getElementById('matrixInput').click()">Mettre à jour le catalogue</button>
+    <a href="${esc(S.init.dataSheetUrl)}" target="_blank" class="small">Données</a>`;
+}
+
+// =================================================================
+//  Dépôt et lecture des factures
+// =================================================================
+function addFiles(files) {
+  const first = S.queue.length;
+  Array.from(files).forEach(f => S.queue.push({ file: f, name: f.name, status: 'attente', ov: {}, force: false }));
+  // Affiche le nouveau document, sauf si un document est en cours de vérification (il reste affiché, le nouveau est dans la file).
+  // (Avant : l'index 0 était repris après « Nouvel import », ce qui réaffichait l'ancien document fermé.)
+  const c = cur();
+  if (S.queue.length > first && (!c || c.status === 'clos' || c.status === 'genere')) S.current = first;
+  render(); runQueue();
+}
+
+let running = false;
+async function runQueue() {
+  if (running) return;
+  running = true;
+  for (const inv of S.queue) {
+    if (inv.status !== 'attente') continue;
+    inv.status = 'lecture'; render();
+    try {
+      const payload = await fileToPayload(inv.file);
+      inv.lieu = S.lieu;
+      inv.res = await call('analyserFacture', payload, inv.lieu);
+      inv.head = {
+        emetteur: inv.res.extraction.emetteur || '',
+        numero: inv.res.extraction.numero_facture || '',
+        date: validIso(inv.res.extraction.date_facture) ? inv.res.extraction.date_facture : '',
+        type: inv.res.extraction.type_document === 'bon_de_livraison' ? 'BL' : 'Facture'
+      };
+      inv.doublon = inv.res.doublon;
+      inv.bls = inv.res.bls || {};
+      inv.status = 'pret';
+      evaluate(inv);
+    } catch (err) {
+      inv.status = 'erreur'; inv.error = err.message;
+    }
+    render();
+  }
+  running = false;
+}
+
+// PDF envoyé tel quel ; photo réduite à 2200 px en JPEG (lisible, plus léger, sous la limite de l'IA).
+async function fileToPayload(file) {
+  const type = (file.type || '').toLowerCase();
+  if (type === 'application/pdf') {
+    if (file.size > 25 * 1024 * 1024) throw new Error('PDF trop lourd (plus de 25 Mo).');
+    return { base64: await readBase64(file), mimeType: 'application/pdf', name: file.name };
+  }
+  if (!/^image\/(jpeg|png|webp)$/.test(type)) throw new Error('Format non pris en charge : déposez un PDF ou une photo JPG / PNG (les photos iPhone HEIC ne sont pas lues : réglez l\'appareil photo sur « Le plus compatible »).');
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Image illisible.')); i.src = url; });
+    const scale = Math.min(1, 2200 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+    const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    return { base64: c.toDataURL('image/jpeg', 0.85).split(',')[1], mimeType: 'image/jpeg', name: file.name.replace(/\.\w+$/, '') + '.jpg' };
+  } finally { URL.revokeObjectURL(url); }
+}
+function readBase64(file) {
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = () => rej(new Error('Lecture du fichier impossible.')); r.readAsDataURL(file); });
+}
+
+// =================================================================
+//  Rapprochement et alertes (ligne par ligne)
+// =================================================================
+const prodUnit = (p) => /kilo/i.test(p.u) ? 'KG' : 'U';
+const unitLabel = (u) => ({ U: 'article(s)', KG: 'kg', COLIS: 'colis', AUTRE: 'unité inconnue' }[u] || u);
+
+function evaluate(inv) {
+  const ex = inv.res.extraction;
+  const params = S.init.params;
+  const seuil = Number(params['Seuil écart prix (%)']) || 5;
+  const em = normEmetteur(inv.head.emetteur);
+  const hasBlDates = ex.lignes.some(l => validIso(l.date_livraison));
+  const manuscrit = !!ex.document_manuscrit;
+  const isBL = inv.head.type === 'BL';
+  const bls = inv.bls || {};
+  inv.creations = inv.creations || {};
+  const pricedLines = ex.lignes.some(l => l.type === 'produit' && num(l.montant_ht) != null);
+
+  inv.lines = ex.lignes.map((src, i) => {
+    const ov = inv.ov[i] || (inv.ov[i] = {});
+    const L = { i, src, ov, alerts: [], match: null, via: '', coef: null, sugg: [] };
+    const q0 = Number(src.quantite), pu0 = num(src.prix_unitaire_ht_net), mt0 = num(src.montant_ht);
+    let kind = src.type || 'autre';
+    if (kind === 'produit' && ((q0 < 0) || (mt0 != null && mt0 < 0))) kind = 'avoir';
+    L.kind = kind;
+    if (kind === 'frais' || kind === 'autre' || kind === 'non_livre') return L;
+    if (kind === 'avoir') { add(L, 'AVOIR', src.remarque ? 'Motif : ' + src.remarque + '. ' + ALERTS.AVOIR.msg : null); return L; }
+
+    // Livraison déjà entrée en stock (BL importé puis facture récapitulative, ou l'inverse)
+    L.bl = isBL ? inv.head.numero : (src.bl_origine || '');
+    const deja = bls[normBl(L.bl)];
+    if (normBl(L.bl) && deja && !ov.blOk && !inv.forceBl && !(isBL && inv.force)) add(L, 'DEJA_BL', `Le BL n° ${L.bl} a déjà été entré en stock le ${deja.date} (${deja.doc}) : l'importer de nouveau ajouterait la marchandise une 2e fois.`);
+
+    // 0. association pour ce document seulement  1. EAN exact  2. table de correspondance (désignation + format)
+    // 3. alerte (suggestions par nom et format, jamais d'association automatique)
+    const ean = normEan(src.ean);
+    const ref = String(src.ref_fournisseur || '').trim();
+    L.w = lineWeight(src);
+    L.lieuDoc = lineLieu(src);
+    if (ov.manual && (S.init.produits.find(p => p.k === ov.manual.k && p.e === ov.manual.e) || S.idx.byKey[ov.manual.k])) {
+      L.match = S.init.produits.find(p => p.k === ov.manual.k && p.e === ov.manual.e) || S.idx.byKey[ov.manual.k]; L.via = 'manuel'; L.coef = ov.manual.coef;
+    } else if (ean && S.idx.byEan[ean]) { L.match = S.idx.byEan[ean]; L.via = 'ean'; }
+    else {
+      const lib = normLabel(src.libelle);
+      const keys = ref ? [`${em}|ref|${ref}`] : (L.w ? [`${em}|lib|${lib} @${L.w}`] : []).concat([`${em}|lib|${lib}`]);
+      for (const k of keys) {
+        const c = S.idx.corr[k], p = c && S.idx.byKey[c.k];
+        if (!p) continue;
+        // Correspondance mémorisée sans format, vers un autre format que celui lu sur le document (pain 500 g ≠ 1 kg) : écartée.
+        // (Une correspondance mémorisée avec son format, « … @0.5 », est un choix explicite : toujours suivie.)
+        if (L.w && p._w && !sameWeight(L.w, p._w) && !/ @[\d.]+$/.test(c.lib)) { L.corrConflict = { c, p }; continue; }
+        L.match = p; L.via = 'corresp'; L.coef = c.coef; L.corr = c; break;
+      }
+    }
+    L.ckey = creationKey(src);
+    if (L.match) delete inv.creations[L.ckey];
+    else {
+      L.sugg = suggest(src.libelle, 3, L.w);
+      const best = L.sugg[0];
+      if (inv.creations[L.ckey]) { L.creation = inv.creations[L.ckey]; add(L, 'A_CREER', `Fiche prête : « ${fullName(L.creation)} ». ${ALERTS.A_CREER.msg}`); }
+      else if (L.corrConflict) { L.corr = L.corrConflict.c; add(L, 'A_ASSOCIER', `La correspondance mémorisée pointe vers « ${L.corrConflict.p.n} », mais le document indique ${fmtW(L.w)} la pièce : choisissez le produit du bon format.`); }
+      else if (ean && best && best.sim >= 0.8 && best.p.e && best.p.e !== ean) add(L, 'NOM_EAN_DIFF', `${ALERTS.NOM_EAN_DIFF.msg} Proche de « ${best.p.n} » (EAN ${best.p.e}).`);
+      else if (ean) add(L, 'INCONNU', `EAN ${ean} absent du catalogue. ${ALERTS.INCONNU.msg}`);
+      else add(L, 'A_ASSOCIER');
+    }
+
+    // Quantité et prix dans l'unité du produit Toporder
+    let qty = q0, pu = pu0;
+    if (L.match) {
+      const pu_ = prodUnit(L.match);
+      if (L.coef) { qty = q0 * L.coef; pu = pu0 != null ? pu0 / L.coef : null; }
+      else if (src.unite !== pu_) {
+        const cv = autoConv(src, L.w, pu_, L.match.n);
+        if (cv) { qty = cv.qty; pu = cv.pu; add(L, 'CONVERSION', `Converti : ${cv.note}. Vérifiez la quantité.`); }
+        else add(L, 'UNITE', `La facture est en ${unitLabel(src.unite)}, le produit Toporder en ${L.match.u}. Réassociez en indiquant la conversion (ex. 1 colis = 6 articles).`);
+      }
+    }
+    L.qty = ov.qty != null ? ov.qty : (qty != null ? round(qty, 3) : null);
+    L.pu = ov.pu != null ? ov.pu : (pu != null ? round(pu, 4) : null);
+
+    // Lecture incertaine / manuscrite / calcul incohérent → validation manuelle
+    const reasons = [];
+    if (src.confiance === 'basse') reasons.push("l'IA n'a pas pu lire la ligne avec certitude");
+    // Filet de sécurité si l'IA a classé en produit une ligne non livrée
+    if (NON_LIVRE_RE.test(`${src.libelle || ''} ${src.remarque || ''}`)) reasons.push('la ligne mentionne une rupture / non-livraison : vérifiez que l\'article est bien arrivé');
+    else if (src.a_verifier) reasons.push("l'IA signale un doute sur cette ligne");
+    if (pu0 == null && mt0 == null && !normEan(src.ean) && pricedLines) reasons.push('ligne sans prix, montant ni code-barres, contrairement aux autres : article peut-être non livré');
+    if (manuscrit) reasons.push('facture manuscrite : chaque ligne doit être relue');
+    if (!(q0 > 0)) reasons.push('quantité illisible');
+    if (pu0 == null && !isBL) reasons.push('prix illisible');
+    if (pu0 == null && isBL && ov.pu == null && L.match && !L.match.pa) reasons.push("prix absent du BL et de la fiche Toporder : saisissez-le");
+    if (q0 > 0 && pu0 != null && mt0 != null && Math.abs(q0 * pu0 - mt0) > Math.max(0.05, 0.02 * Math.abs(mt0))) reasons.push(`quantité × prix (${fmtN(q0 * pu0)} €) ≠ montant lu (${fmtN(mt0)} €)`);
+    if (reasons.length && src.remarque) reasons.push('remarque de lecture : ' + src.remarque);
+    if (reasons.length && !ov.validated) add(L, 'CONFIANCE', 'À relire sur la facture : ' + reasons.join(' ; ') + '. Corrigez si besoin puis « Valider ».');
+    if (ov.validated && !(L.qty > 0)) add(L, 'CONFIANCE', 'Quantité manquante.');
+    if (L.match && L.match.prov) add(L, 'NOUVEAU');
+
+    if (L.match) {
+      // Prix (informatif, la ligne reste importée)
+      const pa = L.match.pa;
+      if (L.pu == null && isBL && pa) { L.pu = pa; add(L, 'PRIX', `Prix absent du BL : prix de la fiche Toporder utilisé (${fmtE(pa)}).`); }
+      else if (!pa) add(L, 'PRIX', `Pas de prix d'achat sur la fiche Toporder (facturé ${fmtE(L.pu)}).`);
+      else if (L.pu != null && Math.abs(L.pu - pa) / pa * 100 > seuil) add(L, 'PRIX', `Facturé ${fmtE(L.pu)} au lieu de ${fmtE(pa)} sur la fiche (${L.pu > pa ? '+' : ''}${fmtN((L.pu - pa) / pa * 100, 1)} %).`);
+
+      // DLC : facture > saisie > durée de conservation (date de livraison + durée)
+      L.dlcSource = '';
+      if (ov.dlc) { L.dlc = ov.dlc; L.dlcSource = 'saisie'; }
+      else if (validIso(src.dlc)) { L.dlc = src.dlc; L.dlcSource = 'facture'; }
+      else {
+        const d = S.init.durees[String(L.match.k)] || S.init.durees[L.match.f];
+        const base = validIso(src.date_livraison) ? src.date_livraison : (!hasBlDates && inv.head.date ? inv.head.date : '');
+        if (d && base) { L.dlc = addDays(base, d); L.dlcSource = `livraison ${isoToFr(base)} + ${d} j`; }
+        else L.dlc = '';
+      }
+      if (!L.dlc && !ov.noDlc) {
+        const why = !(S.init.durees[String(L.match.k)] || S.init.durees[L.match.f]) ? '' : " Durée connue mais pas de date de livraison fiable sur cette facture.";
+        add(L, 'DLC', ALERTS.DLC.msg + why);
+      }
+
+      // Répartition entre lieux
+      // Boutique écrite sur la ligne (colonne Observation « CHATO »…) : prioritaire sur la boutique du document.
+      L.alloc = ov.alloc ? ov.alloc : [{ lieu: L.lieuDoc || inv.lieu, q: L.qty }];
+      if (L.lieuDoc && !ov.alloc && S.init.lieux.length > 1) add(L, 'LIEU', `Le document destine cette ligne à ${lieuLabel(L.lieuDoc)}${src.observation ? ` (« ${src.observation} »)` : ''} : elle y est rangée. Changez la boutique si besoin.`);
+      if (ov.alloc) {
+        const sum = ov.alloc.reduce((s, a) => s + (Number(a.q) || 0), 0);
+        if (Math.abs(sum - (L.qty || 0)) > 0.0005) add(L, 'REPARTITION', `La répartition (${fmtN(sum, 3)}) ne correspond pas à la quantité (${fmtN(L.qty, 3)}).`);
+      }
+    }
+    return L;
+  });
+  inv.lines.forEach(L => {
+    L.blocked = L.alerts.some(a => ALERTS[a.code].block);
+    L.included = L.kind === 'produit' && !!L.match && !L.blocked;
+  });
+
+  // Contrôle du total : somme des lignes lues vs total HT imprimé
+  inv.control = null;
+  const t = num(ex.total_ht);
+  if (t != null) {
+    const amt = (l) => { const m = num(l.montant_ht); const v = m != null ? m : (Number(l.quantite) || 0) * (num(l.prix_unitaire_ht_net) || 0); return l.type === 'avoir' ? -Math.abs(v) : v; };
+    const sumBy = (types) => ex.lignes.filter(l => types.indexOf(l.type) >= 0).reduce((s, l) => s + amt(l), 0);
+    const tol = Number(params['Tolérance contrôle total (€)']) || 0.10;
+    const cands = [sumBy(['produit', 'avoir', 'frais', 'autre']), sumBy(['produit', 'avoir']), sumBy(['produit'])];
+    const ok = cands.some(s => Math.abs(s - t) <= tol);
+    inv.control = { ok, total: t, sum: cands[1], sumAll: cands[0] };
+  }
+}
+function add(L, code, msg) { L.alerts.push({ code, msg: msg || ALERTS[code].msg }); }
+
+// =================================================================
+//  Rendu
+// =================================================================
+function render() {
+  if (!S.init) return;
+  renderCatChip();
+  const app = $('app');
+  const noCat = !S.init.produits.length;
+  let html = '';
+
+  if (noCat) {
+    html += `<div class="panel"><div class="panel-head"><span class="step-badge">!</span> Importer le catalogue Toporder</div>
+      <p style="margin-bottom:12px">Dans Toporder : <b>Stock → Import de stock</b>, téléchargez la matrice (fichier .xlsx), puis déposez-la ici. À refaire après chaque création de produit dans Toporder.</p>
+      <button class="btn btn-primary" onclick="document.getElementById('matrixInput').click()">Choisir la matrice .xlsx</button></div>`;
+    app.innerHTML = html; return;
+  }
+
+  const pending = S.queue.filter(q => q.status === 'pret' || q.status === 'lecture' || q.status === 'attente').length;
+  html += `<div class="tabs">
+    <button class="tab ${!S.view || S.view === 'factures' ? 'active' : ''}" onclick="setView('factures')">Factures / BL${pending ? ` <span class="count">${pending}</span>` : ''}</button>
+    <button class="tab ${S.view === 'dashboard' ? 'active' : ''}" onclick="setView('dashboard')">Tableau de bord</button>
+    <button class="tab ${S.view === 'historique' ? 'active' : ''}" onclick="setView('historique')">Historique</button></div>`;
+  if (S.view === 'historique' || S.view === 'dashboard') {
+    const focus = document.activeElement && document.activeElement.id;
+    app.innerHTML = html + (S.view === 'historique' ? renderHistory() : renderDashboard());
+    if (S.view === 'dashboard') drawDashChart();
+    if (focus && $(focus)) { const f = $(focus); f.focus(); if (f.setSelectionRange && f.type !== 'select-one') f.setSelectionRange(f.value.length, f.value.length); }
+    return;
+  }
+
+  // Étape 1 : lieu + dépôt
+  html += `<div class="panel">
+    <div class="panel-head"><span class="step-badge">1</span> Déposer des factures ou des bons de livraison</div>
+    <div class="row">
+      <div class="field"><label class="label">Boutique qui reçoit la marchandise</label>
+        <select id="lieuSel" onchange="setLieu(this.value)">${S.init.lieux.map(l => `<option value="${esc(l)}" ${l === S.lieu ? 'selected' : ''}>${esc(lieuLabel(l))}</option>`).join('')}</select>
+      </div>
+      <div class="drop" id="drop" onclick="document.getElementById('fileInput').click()">
+        <strong>Déposer les factures / BL ici</strong><span class="muted small">ou cliquer pour choisir · PDF ou photo (JPG, PNG)</span>
+      </div>
+    </div>
+    ${S.queue.some(q => q.status !== 'clos') ? `<div class="queue">${S.queue.map((inv, i) => inv.status === 'clos' ? '' : `
+      <span class="q-item ${i === S.current ? 'active' : ''}" onclick="selectInv(${i})" title="${esc(inv.name)}">
+        <span class="dot ${inv.status}"></span><span class="nm">${esc(inv.head && inv.head.emetteur ? inv.head.emetteur + ' ' + inv.head.numero : inv.name)}</span>
+        <span class="muted small">${({ attente: 'en attente', lecture: 'lecture…', pret: 'à vérifier', genere: 'fichier généré', erreur: 'erreur' })[inv.status]}</span>
+      </span>`).join('')}</div>` : ''}
+  </div>`;
+
+  const inv = S.queue[S.current];
+  if (inv && inv.status !== 'clos') html += renderInvoice(inv);
+  app.innerHTML = html;
+  bindDrop();
+}
+
+function renderInvoice(inv) {
+  if (inv.status === 'attente' || inv.status === 'lecture') {
+    return `<div class="panel loading"><span class="spinner"></span> Lecture de « ${esc(inv.name)} » par l'IA… (20 à 90 secondes)</div>`;
+  }
+  if (inv.status === 'erreur') {
+    return `<div class="panel"><div class="banner error"><div class="grow"><b>« ${esc(inv.name)} » n'a pas pu être lue.</b><br>${esc(inv.error)}</div>
+      <button class="btn btn-sm" onclick="retry(${S.current})">Réessayer</button></div></div>`;
+  }
+  const ex = inv.res.extraction;
+  const lines = inv.lines;
+  const todo = lines.filter(l => l.kind === 'produit' && !l.included);
+  const ok = lines.filter(l => l.included);
+  const other = lines.filter(l => l.kind !== 'produit');
+  const nbRows = ok.reduce((s, l) => s + l.alloc.filter(a => Number(a.q) > 0).length, 0);
+  let h = `<div class="panel">
+    <div class="panel-head"><span class="step-badge">2</span> Vérifier ${inv.head.type === 'BL' ? 'le bon de livraison' : 'la facture'} <span class="spacer"></span>
+      <a href="#" onclick="viewInvoice();return false" class="small">Voir le document</a>
+      <button class="btn btn-sm" onclick="newImport()" title="Fermer ce document et en déposer un autre">+ Nouvel import</button></div>`;
+
+  if (inv.status === 'genere') {
+    h += `<div class="banner ok"><div class="grow"><b>Fichier généré.</b> Importez-le dans Toporder : <b>Stock → Import de stock</b>, en mode réapprovisionnement.<br>
+      ${inv.result.files.map((f, j) => `<a href="#" onclick="downloadFile(${S.current}, ${j});return false">Télécharger ${esc(f.name)}</a> <span class="small">(${esc(f.lieu.split(' + ').map(lieuLabel).join(' + '))})</span>`).join('<br>')}</div>
+      ${S.queue.some(q => q.status === 'pret') ? `<button class="btn btn-primary btn-sm" onclick="newImport()">Document suivant</button>` : `<button class="btn btn-primary btn-sm" onclick="newImport()">+ Nouvel import</button>`}</div>`;
+  }
+
+  // En-tête
+  h += `<div class="inv-head">
+    <div class="field"><label class="label">Fournisseur (émetteur)</label><input type="text" value="${esc(inv.head.emetteur)}" onchange="setHead('emetteur', this.value)"></div>
+    <div class="field"><label class="label">Document</label><select onchange="setHead('type', this.value)">${['Facture', 'BL'].map(t => `<option value="${t}" ${t === inv.head.type ? 'selected' : ''}>${t === 'BL' ? 'Bon de livraison' : 'Facture'}</option>`).join('')}</select></div>
+    <div class="field"><label class="label">N° ${inv.head.type === 'BL' ? 'BL' : 'facture'}</label><input type="text" value="${esc(inv.head.numero)}" onchange="setHead('numero', this.value)"></div>
+    <div class="field"><label class="label">Date ${inv.head.type === 'BL' ? 'BL' : 'facture'}</label><input type="date" value="${esc(inv.head.date)}" onchange="setHead('date', this.value)"></div>
+    <div class="field"><label class="label">Boutique</label><select onchange="setInvLieu(this.value)">${S.init.lieux.map(l => `<option value="${esc(l)}" ${l === inv.lieu ? 'selected' : ''}>${esc(lieuLabel(l))}</option>`).join('')}</select></div>
+    <div class="field"><label class="label">Total HT</label><div style="padding:7px 0;font-weight:600">${fmtE(num(ex.total_ht))}</div></div>
+  </div>
+  ${ex.destinataire_adresse ? `<p class="small muted" style="margin:-4px 0 12px">Livré à : ${esc(ex.destinataire_adresse)}</p>` : ''}`;
+
+  // Alertes globales
+  if (inv.doublon) {
+    h += `<div class="banner error"><div class="grow"><b>${inv.head.type === 'BL' ? 'BL déjà traité' : 'Facture déjà traitée'}</b> le ${esc(inv.doublon.date)} pour cette boutique${inv.doublon.numero ? ` (n° ${esc(inv.doublon.numero)}, ${inv.doublon.lignes} ligne${inv.doublon.lignes > 1 ? 's' : ''} importée${inv.doublon.lignes > 1 ? 's' : ''}${inv.doublon.auteur ? ', par ' + esc(inv.doublon.auteur) : ''})` : ''}.${inv.doublon.id ? ` <a href="#" onclick="showHistoryById('${esc(inv.doublon.id)}');return false">Voir dans l'historique</a>` : ''}
+      ${inv.doublon.fichier ? `<a href="${esc(inv.doublon.fichier)}" target="_blank">Voir le fichier</a>` : ''}<br>La réimporter ajouterait le stock une deuxième fois.</div>
+      <label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" ${inv.force ? 'checked' : ''} onchange="setForce(this.checked)"> Traiter quand même</label></div>`;
+  }
+  const dejaBl = lines.filter(l => l.alerts.some(a => a.code === 'DEJA_BL')).length;
+  if (dejaBl || inv.forceBl) {
+    h += `<div class="banner error"><div class="grow"><b>Livraison déjà entrée en stock.</b> ${dejaBl ? `${dejaBl} ligne${dejaBl > 1 ? 's' : ''} provien${dejaBl > 1 ? 'nent' : 't'} d'un BL déjà importé (le BL lui-même ou une facture qui le reprend).` : 'Contrôle levé pour toutes les lignes.'}
+      Évitez d'importer à la fois le BL et la facture d'une même livraison.</div>
+      <label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" ${inv.forceBl ? 'checked' : ''} onchange="cur().forceBl=this.checked;refresh()"> Importer quand même toutes les lignes</label></div>`;
+  }
+  const byLieu = {};
+  lines.filter(l => l.kind === 'produit' && l.lieuDoc).forEach(l => { (byLieu[l.lieuDoc] = byLieu[l.lieuDoc] || []).push(l); });
+  if (Object.keys(byLieu).length && S.init.lieux.length > 1) {
+    const mentions = (ls) => [...new Set(ls.map(l => String(l.src.observation || '').trim()).filter(Boolean))].map(m => `« ${esc(m)} »`).join(', ');
+    const rest = lines.filter(l => l.kind === 'produit' && !l.lieuDoc).length;
+    h += `<div class="banner info"><div class="grow"><b>Livraison pour plusieurs boutiques.</b> ${Object.entries(byLieu).map(([lx, ls]) => `${ls.length} ligne${ls.length > 1 ? 's' : ''} pour <b>${esc(lieuLabel(lx))}</b>${mentions(ls) ? ' (' + mentions(ls) + ')' : ''}`).join(' · ')}${rest ? ` · ${rest} sans mention → <b>${esc(lieuLabel(inv.lieu))}</b> (boutique du document)` : ''}.
+      Chaque ligne est rangée dans sa boutique ; un même produit sur deux lignes est importé dans les deux.</div></div>`;
+  }
+  const pts = (ex.points_attention || []).filter(p => String(p || '').trim());
+  if (ex.document_manuscrit) h +=`<div class="banner warn"><div class="grow"><b>Facture manuscrite.</b> Relisez et validez chaque ligne avec la facture sous les yeux.</div></div>`;
+  if (!inv.head.date) h += `<div class="banner warn"><div class="grow"><b>Date du document non lue.</b> Saisissez-la ci-dessus.</div></div>`;
+  if (inv.control && !inv.control.ok) {
+    h += `<div class="banner warn"><div class="grow"><b>Contrôle du total : écart.</b> Les lignes lues totalisent ${fmtE(inv.control.sum)} (${fmtE(inv.control.sumAll)} avec frais) pour un total HT facture de ${fmtE(inv.control.total)}.
+      Une ligne a peut-être été oubliée ou mal lue.</div><button class="btn btn-sm btn-primary" onclick="openControle()">Contrôle approfondi</button></div>`;
+  } else if (inv.control) {
+    h += `<div class="banner ok"><div class="grow">Contrôle du total : les lignes lues correspondent au total HT de la facture.</div><button class="btn btn-sm" onclick="openControle()">Contrôle approfondi</button></div>`;
+  } else if (inv.head.type !== 'BL') {
+    h += `<div class="banner warn"><div class="grow">Total HT non lu sur la facture : contrôle impossible.</div><button class="btn btn-sm" onclick="openControle()">Contrôle approfondi</button></div>`;
+  }
+
+  const nbCrea = Object.keys(inv.creations).length;
+  if (nbCrea && inv.status !== 'genere') {
+    h += `<div class="banner info"><div class="grow"><b>${nbCrea} produit${nbCrea > 1 ? 's' : ''} à créer dans Toporder</b> : ${Object.values(inv.creations).map(c => esc(fullName(c))).join(', ')}.
+      ${inv.creationFile ? `<br>Fichier généré (<a href="#" onclick="download(cur().creationFile);return false">retélécharger</a>). Une fois importé dans Toporder, <a href="#" onclick="showCreateSteps();return false">importez la nouvelle matrice</a> (elle donne la Clé Toporder des nouveaux produits).` : ''}</div>
+      <button class="btn btn-primary btn-sm" onclick="generateCreation()">${inv.creationFile ? 'Regénérer' : 'Générer'} le fichier de création</button></div>`;
+  }
+
+  // Compteurs cliquables : une seule liste affichée à la fois
+  const counts = { todo: todo.length, ok: ok.length, other: other.length, notes: pts.length };
+  if (!counts[inv.tab]) inv.tab = ['todo', 'ok', 'other', 'notes'].find(k => counts[k]) || 'ok';
+  const chip = (k, cls, label) => counts[k] || k !== 'notes'
+    ? `<button type="button" class="stat ${cls}${inv.tab === k ? ' active' : ''}" ${counts[k] ? `onclick="cur().tab='${k}';refresh()"` : 'disabled'}><b>${counts[k]}</b> ${label}</button>` : '';
+  h += `<div class="stats">
+    ${chip('ok', 'ok', 'prêtes à importer')}
+    ${chip('todo', 'warn', 'à vérifier')}
+    ${chip('other', 'muted', 'non importées')}
+    ${chip('notes', 'muted', `remarque${pts.length > 1 ? 's' : ''} sur le document`)}
+  </div>`;
+
+  if (inv.tab === 'todo' && todo.length) {
+    const dlcOnly = todo.filter(l => l.alerts.every(a => a.code === 'DLC' || !ALERTS[a.code].block));
+    if (dlcOnly.length > 1) h += `<div class="group-title"><button class="btn btn-sm" onclick="allNoDlc()">Importer les ${dlcOnly.length} lignes sans DLC</button></div>`;
+    h += table(todo, inv);
+  }
+  if (inv.tab === 'ok' && ok.length) h += table(ok, inv);
+  if (inv.tab === 'other' && other.length) {
+    h += `<div class="table-wrap"><table><thead><tr><th>Raison</th><th>Ligne du document</th><th>Qté</th><th>Montant HT</th><th>Détail</th></tr></thead><tbody>
+      ${other.map(l => `<tr><td><span class="badge ${l.kind === 'avoir' ? 'block' : l.kind === 'non_livre' ? 'info' : 'grey'}">${esc(KIND_LABEL[l.kind] || l.kind)}</span></td><td class="lib">${esc(l.src.libelle)}</td>
+      <td>${fmtN(l.src.quantite, 3)}</td><td>${fmtE(num(l.src.montant_ht))}</td><td class="small">${l.kind === 'non_livre' ? esc(l.src.remarque || 'Commandé mais non livré') : esc(kindMotif(l)) + (l.src.remarque ? '<br>' + esc(l.src.remarque) : '')}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+  if (inv.tab === 'notes' && pts.length) {
+    h += `<div class="table-wrap"><table><tbody>${pts.map(p => `<tr><td class="small">${esc(p)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+
+  if (inv.status !== 'genere') {
+    const blocked = inv.doublon && !inv.force;
+    h += `<div class="gen-bar"><div class="grow">${nbRows ? `<b>${nbRows}</b> ligne${nbRows > 1 ? 's' : ''} dans le fichier` : 'Aucune ligne prête'}${todo.length ? ` · <span style="color:var(--warn)">${todo.length} à vérifier ne seront pas importées</span>` : ''}</div>
+      <button class="btn btn-primary btn-lg" id="genBtn" ${(!nbRows || blocked || !inv.head.date) ? 'disabled' : ''} onclick="generate()">Générer le fichier d'import</button></div>`;
+  }
+  h += `</div>`;
+  return h;
+}
+
+function table(lines, inv) {
+  const multi = S.init.lieux.length > 1;
+  return `<div class="table-wrap"><table><thead><tr>
+    <th style="width:20%">Ligne facture</th><th style="width:22%">Produit Toporder</th><th>Qté</th><th>PU HT net</th><th>DLC</th>${multi ? '<th>Lieu</th>' : ''}<th>Statut</th>
+  </tr></thead><tbody>${lines.map(l => row(l, inv, multi)).join('')}</tbody></table></div>`;
+}
+
+function row(L, inv, multi) {
+  const s = L.src, m = L.match, done = inv.status === 'genere';
+  const dis = done ? 'disabled' : '';
+  const sub = [s.ref_fournisseur ? 'Réf. ' + s.ref_fournisseur : '', s.ean ? 'EAN ' + s.ean : '', s.marque || '',
+    validIso(s.date_livraison) ? 'livré le ' + isoToFr(s.date_livraison) : '', s.observation ? 'Obs. : ' + s.observation : ''].filter(Boolean).join(' · ');
+  const poids = [num(s.poids_total_kg) > 0 && s.unite !== 'KG' ? fmtN(num(s.poids_total_kg), 3) + ' kg' : '', num(s.nombre_pieces) > 0 && s.unite !== 'U' ? fmtN(num(s.nombre_pieces), 0) + ' pièce(s)' : '',
+    L.w ? fmtW(L.w) + ' la pièce' : ''].filter(Boolean).join(', ');
+  const facture = `${fmtN(s.quantite, 3)} ${unitLabel(s.unite)}${poids ? ' (' + poids + ')' : ''} × ${fmtE(num(s.prix_unitaire_ht_net))}`;
+  const via = { ean: 'par code-barres', corresp: 'correspondance mémorisée', manuel: 'associé pour ce document seulement' }[L.via] || '';
+  const forget = L.corr && !done ? `<button class="btn-link" onclick="forgetCorr(${L.i})">Oublier l'association mémorisée</button>` : '';
+  let prod;
+  if (m) {
+    prod = `<div class="prod">${esc(m.n)}</div><div class="sub">${esc(m.u)}${m.e ? ' · EAN ' + m.e : ''} · ${via}${L.coef ? ' · ×' + fmtN(L.coef, 3) : ''}</div>
+      ${!done ? `<div class="actions"><button class="btn-link" onclick="openAssoc(${L.i})">Changer</button>${forget}</div>` : ''}`;
+  } else if (L.creation) {
+    prod = `<div class="prod">${esc(fullName(L.creation))}</div><div class="sub">à créer · ${esc(L.creation.cat)} · PV ${fmtE(L.creation.pv)}</div>
+      ${!done ? `<div class="actions" style="margin-top:4px"><button class="btn-link" onclick="openCreate(${L.i})">Modifier la fiche</button>
+        <button class="btn-link" onclick="cancelCreate(${L.i})">Annuler la création</button>
+        <button class="btn-link" onclick="openAssoc(${L.i})">Déjà dans Toporder : l'associer</button></div>` : ''}`;
+  } else {
+    prod = `<div class="prod none">Aucun produit</div>${L.sugg.length ? `<div class="sub">Proche : ${L.sugg.map(x => esc(x.p.n)).join(' · ')}</div>` : ''}
+      ${!done ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px"><button class="btn btn-sm btn-primary" onclick="openAssoc(${L.i})">Associer</button>
+        <button class="btn btn-sm" onclick="openCreate(${L.i})">Créer dans Toporder</button></div>${forget ? '<div>' + forget + '</div>' : ''}` : ''}`;
+  }
+  const qty = m ? `<input type="text" inputmode="decimal" value="${fmtN(L.qty, 3)}" ${dis} onchange="setOv(${L.i}, 'qty', this.value)"><div class="sub">${esc(m.u)}</div>` : `<span class="sub">${facture}</span>`;
+  const pu = m ? `<input type="text" inputmode="decimal" value="${fmtN(L.pu, 4)}" ${dis} onchange="setOv(${L.i}, 'pu', this.value)">${m.pa ? `<div class="sub">fiche ${fmtE(m.pa)}</div>` : ''}` : '';
+  let dlc = '';
+  if (m) {
+    dlc = `<input type="date" value="${esc(L.dlc || '')}" ${dis} onchange="setOv(${L.i}, 'dlc', this.value)">
+      <div class="sub">${L.dlcSource ? esc(L.dlcSource) : (L.ov.noDlc ? 'importée sans DLC' : '')}</div>
+      ${!done && !L.dlc ? `<div class="actions" style="margin-top:4px"><button class="btn-link" onclick="askDuree(${L.i})">Durée de conservation…</button>
+        ${!L.ov.noDlc ? `<button class="btn-link" onclick="setOv(${L.i}, 'noDlc', true)">Sans DLC</button>` : `<button class="btn-link" onclick="setOv(${L.i}, 'noDlc', false)">Annuler « sans DLC »</button>`}</div>` : ''}`;
+  }
+  let lieu = '';
+  if (multi && m) {
+    if (L.ov.alloc) {
+      lieu = `<div class="alloc">${S.init.lieux.map((lx, j) => { const a = L.ov.alloc.find(x => x.lieu === lx); return `<label><input type="text" inputmode="decimal" value="${a ? fmtN(a.q, 3) : ''}" ${dis} onchange="setAlloc(${L.i}, ${j}, this.value)">${esc(lx)}</label>`; }).join('')}</div>
+        ${!done ? `<button class="btn-link" onclick="setOv(${L.i}, 'alloc', null)">Un seul lieu</button>` : ''}`;
+    } else {
+      lieu = `<select ${dis} onchange="setLineLieu(${L.i}, this.value)">${S.init.lieux.map(lx => `<option ${lx === L.alloc[0].lieu ? 'selected' : ''}>${esc(lx)}</option>`).join('')}</select>
+        ${!done ? `<div><button class="btn-link" onclick="startAlloc(${L.i})">Répartir</button></div>` : ''}`;
+    }
+  }
+  const badges = L.alerts.length ? L.alerts.map(a => `<span class="badge ${ALERTS[a.code].block ? 'block' : 'info'}">${esc(ALERTS[a.code].label)}</span>`).join('') : '<span class="badge ok">OK</span>';
+  const msgs = L.alerts.map(a => `<div class="msg ${ALERTS[a.code].block ? 'block' : 'info'}">${esc(a.msg)}</div>`).join('');
+  const validate = (L.alerts.some(a => a.code === 'CONFIANCE') && !done ? `<button class="btn btn-sm" style="margin-top:6px" onclick="setOv(${L.i}, 'validated', true)">Valider la ligne</button>` : '')
+    + (L.alerts.some(a => a.code === 'DEJA_BL') && !done ? `<button class="btn btn-sm" style="margin-top:6px" onclick="setOv(${L.i}, 'blOk', true)">Importer quand même</button>` : '');
+  return `<tr>
+    <td><div class="lib">${esc(s.libelle)}</div><div class="sub">${esc(sub)}</div><div class="sub">Facture : ${facture}${s.dlc ? ' · DLC ' + isoToFr(s.dlc) : ''}</div></td>
+    <td>${prod}</td><td class="num">${qty}</td><td class="num">${pu}</td><td>${dlc}</td>${multi ? `<td>${lieu}</td>` : ''}
+    <td style="min-width:200px">${badges}${msgs}${validate}</td></tr>`;
+}
+
+// =================================================================
+//  Actions
+// =================================================================
+function cur() { return S.queue[S.current]; }
+function refresh() { const inv = cur(); if (inv && inv.status === 'pret') evaluate(inv); render(); }
+
+function setLieu(v) { S.lieu = v; store('gm_lieu', v); }
+function selectInv(i) { S.current = i; render(); if (cur() && cur().status === 'pret') checkDoublon(); }
+function nextInv() { const i = S.queue.findIndex(q => q.status === 'pret'); if (i >= 0) { S.current = i; render(); window.scrollTo(0, 0); } }
+function retry(i) { S.queue[i].status = 'attente'; render(); runQueue(); }
+function setForce(v) { cur().force = v; render(); }
+
+function setOv(i, key, val) {
+  const ov = cur().ov[i];
+  if (key === 'qty' || key === 'pu') {
+    const n = num(val);
+    if (n == null && val !== '') { toast('Nombre invalide'); render(); return; }
+    ov[key] = val === '' ? null : n;
+    if (key === 'qty') ov.alloc = null;
+  } else if (key === 'dlc') {
+    ov.dlc = validIso(val) ? val : null;
+  } else ov[key] = val;
+  refresh();
+}
+function setLineLieu(i, lieu) { const L = cur().lines[i]; cur().ov[i].alloc = [{ lieu, q: L.qty }]; refresh(); }
+function startAlloc(i) { const L = cur().lines[i]; cur().ov[i].alloc = S.init.lieux.map(lx => ({ lieu: lx, q: lx === L.alloc[0].lieu ? L.qty : 0 })); refresh(); }
+function setAlloc(i, j, val) {
+  const ov = cur().ov[i]; const a = ov.alloc.find(x => x.lieu === S.init.lieux[j]);
+  a.q = num(val) || 0; refresh();
+}
+function allNoDlc() { cur().lines.forEach(L => { if (L.alerts.some(a => a.code === 'DLC')) cur().ov[L.i].noDlc = true; }); refresh(); }
+
+function setHead(k, v) {
+  const inv = cur(); inv.head[k] = v;
+  if (k === 'date' && !validIso(v)) inv.head.date = '';
+  refresh();
+  if (k === 'emetteur' || k === 'numero') checkDoublon();
+}
+function setInvLieu(v) {
+  const inv = cur(); inv.lieu = v;
+  Object.values(inv.ov).forEach(ov => { if (ov.alloc && ov.alloc.length === 1) ov.alloc = null; });
+  refresh(); checkDoublon();
+}
+function checkDoublon() {
+  const inv = cur();
+  call('verifierDoublon', inv.head.emetteur, inv.head.numero, inv.lieu).then(r => {
+    inv.doublon = r.doublon; inv.bls = r.bls || {}; if (!r.doublon) inv.force = false; refresh();
+  }).catch(() => {});
+}
+
+// ── Association à un produit Toporder ──────────────────────────────
+let A = null;
+function openAssoc(i) {
+  const L = cur().lines[i];
+  A = { i, sel: L.match || null, q: L.creation ? fullName(L.creation) : '', coef: L.coef || '' };
+  if (!L.sugg.length) L.sugg = suggest(L.src.libelle, 5, L.w);
+  drawAssoc();
+}
+function drawAssoc() {
+  const L = cur().lines[A.i], s = L.src;
+  const list = assocList();
+  const needCoef = assocNeedsCoef();
+  $('modalRoot').innerHTML = `<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>Associer à un produit Toporder</h3>
+    <p class="small muted">Facture ${esc(cur().head.emetteur)} : <b>${esc(s.libelle)}</b>${s.ref_fournisseur ? ' · réf. ' + esc(s.ref_fournisseur) : ''}${s.ean ? ' · EAN ' + esc(s.ean) : ''} — ${fmtN(s.quantite, 3)} ${unitLabel(s.unite)}${L.w ? ` · <b>${fmtW(L.w)} la pièce</b> (lu sur le document)` : ''}${s.observation ? ' · obs. « ' + esc(s.observation) + ' »' : ''}</p>
+    <input type="search" id="assocQ" placeholder="Rechercher par nom ou code-barres…" value="${esc(A.q)}" style="width:100%;margin-top:12px" oninput="A.q=this.value;drawAssocList()">
+    <div class="results" id="assocList">${listHtml(list)}</div>
+    <div id="assocCoef">${coefHtml(needCoef)}</div>
+    <p class="small muted" style="margin-top:10px"><b>Associer et mémoriser</b> : les prochains documents de ce fournisseur reconnaîtront cette ligne automatiquement (même désignation${L.w ? ' et même format, ' + fmtW(L.w) : ''}).
+      <b>Associer pour ce document</b> : rien n'est retenu, à utiliser si la désignation peut correspondre à plusieurs produits.</p>
+    <div class="modal-foot"><button class="btn" onclick="closeModal()">Annuler</button>
+      <button class="btn" id="assocOnce" ${A.sel ? '' : 'disabled'} onclick="saveAssoc(false)">Associer pour ce document</button>
+      <button class="btn btn-primary" id="assocOk" ${A.sel ? '' : 'disabled'} onclick="saveAssoc(true)">Associer et mémoriser</button></div>
+  </div></div>`;
+  const q = $('assocQ'); q.focus(); q.setSelectionRange(q.value.length, q.value.length);
+}
+// Résultats de la recherche, sinon les produits proposés ; le produit choisi reste toujours visible (en surbrillance).
+function assocList() {
+  const L = cur().lines[A.i];
+  const list = A.q.trim() ? search(A.q) : L.sugg.map(x => x.p);
+  if (A.sel && !list.some(p => p.k === A.sel.k && p.e === A.sel.e)) list.unshift(A.sel);
+  return list;
+}
+function drawAssocList() { $('assocList').innerHTML = listHtml(assocList()); }
+function listHtml(list) {
+  if (!list.length) return `<div class="res muted">${A.q ? 'Aucun produit trouvé.' : 'Tapez un nom ou un code-barres.'}</div>`;
+  return list.map(p => `<div class="res ${A.sel && A.sel.k === p.k && A.sel.e === p.e ? 'sel' : ''}" onclick="pickAssoc(${p.k}, '${p.e}')">
+    <div class="prod">${esc(p.n)}</div><div class="sub">${esc(p.u)}${p.e ? ' · EAN ' + p.e : ''} · ${esc(p.f)}${p.pa ? ' · ' + fmtE(p.pa) : ''} · Clé ${p.k}</div></div>`).join('');
+}
+// Conversion à saisir : unités différentes et pas de poids / nombre de pièces sur le document pour la déduire.
+function assocNeedsCoef() {
+  if (!A.sel) return false;
+  const L = cur().lines[A.i], pu_ = prodUnit(A.sel);
+  return L.src.unite !== pu_ && !autoConv(L.src, L.w, pu_, A.sel.n);
+}
+function coefHtml(need) {
+  const L = cur().lines[A.i], s = L.src;
+  const pw = A.sel && A.sel._w;
+  const fmt = pw && L.w && !sameWeight(pw, L.w) ? `<div class="banner warn" style="margin-top:12px"><div class="grow">Attention : ce produit fait <b>${fmtW(pw)}</b>, le document indique <b>${fmtW(L.w)}</b> la pièce.</div></div>` : '';
+  if (!need) return fmt;
+  return fmt + `<div class="banner warn" style="margin-top:12px"><div class="grow">La facture est en <b>${unitLabel(s.unite)}</b>, ce produit en <b>${esc(A.sel.u)}</b>. Indiquez la conversion :<br>
+    1 ${unitLabel(s.unite).replace(/\(s\)/, '')} = <input type="text" inputmode="decimal" id="coefIn" value="${esc(A.coef)}" style="width:80px" oninput="A.coef=this.value"> ${esc(A.sel.u)}</div></div>`;
+}
+function search(q) {
+  const d = q.replace(/\D/g, '');
+  if (d.length >= 6 && d.length === q.replace(/\s/g, '').length) return S.init.produits.filter(p => p.e && p.e.indexOf(d) >= 0).slice(0, 30);
+  const words = normLabel(q).split(' ').filter(Boolean);
+  return S.init.produits.filter(p => { const n = normLabel(p.n + ' ' + p.f); return words.every(w => n.indexOf(w) >= 0); }).slice(0, 30);
+}
+function pickAssoc(k, e) {
+  A.sel = S.init.produits.find(p => p.k === k && p.e === e);
+  drawAssocList();
+  $('assocCoef').innerHTML = coefHtml(assocNeedsCoef());
+  $('assocOk').disabled = false; $('assocOnce').disabled = false;
+}
+function closeModal() { $('modalRoot').innerHTML = ''; A = null; }
+// memo = true : association mémorisée (désignation + format) ; false : pour ce document seulement.
+async function saveAssoc(memo) {
+  const inv = cur(), L = inv.lines[A.i], s = L.src;
+  const needCoef = assocNeedsCoef();
+  const coef = needCoef ? num(A.coef) : null;
+  if (needCoef && !(coef > 0)) { toast('Indiquez la conversion (nombre positif)'); return; }
+  // Ligne reconnue sur un produit créé depuis l'appli (provisoire) et associée à son vrai produit Toporder :
+  // le provisoire est remplacé partout par la vraie Clé (correspondances, durées, historique) et disparaît.
+  if (L.match && L.match.prov && !A.sel.prov) {
+    try { S.init = await call('resoudreProvisoire', L.match.k, A.sel.k); buildIndex(); }
+    catch (err) { showError('Association impossible', err); return; }
+  }
+  if (!memo) {
+    inv.ov[A.i] = { manual: { k: A.sel.k, e: A.sel.e, coef } };
+    closeModal(); S.queue.forEach(q => { if (q.status === 'pret' && q !== inv) evaluate(q); }); refresh(); return;
+  }
+  $('assocOk').disabled = true; $('assocOnce').disabled = true; $('assocOk').textContent = 'Enregistrement…';
+  try {
+    S.init.correspondances = await call('enregistrerCorrespondance', {
+      emetteur: inv.head.emetteur, ref: s.ref_fournisseur || '', libelle: s.libelle, poids: L.w, cle: A.sel.k, produit: A.sel.n, coef
+    });
+    buildIndex();
+    // Une ligne associée par EAN ne passe pas par la table : on force le produit choisi pour cette facture.
+    const ean = normEan(s.ean);
+    if (ean && S.idx.byEan[ean] && S.idx.byEan[ean].k !== A.sel.k) toast("Attention : ce code-barres existe déjà dans Toporder, il reste prioritaire.");
+    inv.ov[A.i] = {};
+    closeModal(); refresh();
+  } catch (err) {
+    showError('Association impossible', err);
+    $('assocOk').disabled = false; $('assocOnce').disabled = false; $('assocOk').textContent = 'Associer et mémoriser';
+  }
+}
+// Supprime la correspondance mémorisée qui a servi (ou a été écartée) pour cette ligne.
+async function forgetCorr(i) {
+  const L = cur().lines[i], c = L.corr;
+  if (!c) return;
+  const p = S.idx.byKey[c.k];
+  const ok = await dialog({ title: "Oublier l'association mémorisée ?", tone: 'warn', ok: 'Oublier', cancel: 'Annuler',
+    body: `<p>« ${esc(L.src.libelle)} » (${esc(cur().head.emetteur)}) ne sera plus associé automatiquement à « ${esc(p ? p.n : 'Clé ' + c.k)} ».</p><p class="small muted">Les documents déjà importés ne changent pas.</p>` });
+  if (!ok) return;
+  try {
+    S.init.correspondances = await call('supprimerCorrespondance', { em: c.em, ref: c.ref, lib: c.lib });
+    buildIndex();
+    if (cur().ov[i]) delete cur().ov[i].manual;
+    S.queue.forEach(q => { if (q.status === 'pret') evaluate(q); });
+    render(); toast('Association oubliée');
+  } catch (err) { showError('Suppression impossible', err); }
+}
+
+// ── Contrôle approfondi ────────────────────────────────────────────
+// 1. Analyse immédiate dans l'appli (sommes, lignes incohérentes, ligne du montant de l'écart, écarts de prix avec la fiche).
+// 2. Relecture du document par l'IA, qui compare avec ce qui a été lu et propose des corrections (appliquées ligne par ligne).
+function openControle() {
+  const inv = cur();
+  inv.controle = inv.controle || { status: '', report: null, done: {} };
+  drawControle();
+}
+function lineAmount(l) {
+  const m = num(l.montant_ht); const v = m != null ? m : (Number(l.quantite) || 0) * (num(l.prix_unitaire_ht_net) || 0);
+  return l.type === 'avoir' ? -Math.abs(v) : v;
+}
+function localControle(inv) {
+  const ex = inv.res.extraction, ls = ex.lignes;
+  const sum = (types) => ls.filter(l => types.indexOf(l.type) >= 0).reduce((s, l) => s + lineAmount(l), 0);
+  const t = num(ex.total_ht);
+  const sums = { produit: sum(['produit']), avoir: sum(['avoir']), frais: sum(['frais']), autre: sum(['autre']), non_livre: sum(['non_livre']) };
+  const base = sums.produit + sums.avoir;
+  const gap = t != null ? round(t - base, 2) : null;
+  const incoh = ls.map((l, i) => ({ l, i })).filter(({ l }) => {
+    const q = Number(l.quantite), pu = num(l.prix_unitaire_ht_net), mt = num(l.montant_ht);
+    return q > 0 && pu != null && mt != null && Math.abs(q * pu - Math.abs(mt)) > Math.max(0.05, 0.02 * Math.abs(mt));
+  });
+  const match = gap ? ls.map((l, i) => ({ l, i })).filter(({ l }) => { const a = Math.abs(lineAmount(l)); return a > 0 && Math.abs(a - Math.abs(gap)) <= 0.01; }) : [];
+  const seuil = Number(S.init.params['Seuil écart prix (%)']) || 5;
+  const prix = inv.lines.filter(L => L.match && L.match.pa && L.pu != null && num(L.src.prix_unitaire_ht_net) != null)
+    .map(L => ({ L, pct: (L.pu - L.match.pa) / L.match.pa * 100 })).filter(x => Math.abs(x.pct) > seuil)
+    .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+  return { t, sums, base, gap, incoh, match, prix, seuil };
+}
+function drawControle() {
+  const inv = cur(), C = inv.controle, A_ = localControle(inv), ex = inv.res.extraction;
+  const lib = (i) => esc((ex.lignes[i] || {}).libelle || '');
+  let h = `<h3>Contrôle approfondi — ${esc(inv.head.emetteur)} n° ${esc(inv.head.numero)}</h3>`;
+  // Analyse immédiate
+  h += `<div class="group-title" style="margin-top:12px">Ce que l'appli a lu</div><div class="table-wrap"><table><tbody>
+    <tr><td>Produits livrés</td><td class="num">${fmtE(A_.sums.produit)}</td></tr>
+    ${A_.sums.avoir ? `<tr><td>Avoirs</td><td class="num">${fmtE(A_.sums.avoir)}</td></tr>` : ''}
+    ${A_.sums.frais ? `<tr><td>Frais / taxes</td><td class="num">${fmtE(A_.sums.frais)}</td></tr>` : ''}
+    ${A_.sums.autre ? `<tr><td>Autres lignes chiffrées</td><td class="num">${fmtE(A_.sums.autre)}</td></tr>` : ''}
+    ${A_.sums.non_livre ? `<tr><td class="muted">Non livrés (hors total)</td><td class="num muted">${fmtE(A_.sums.non_livre)}</td></tr>` : ''}
+    <tr><td><b>Total HT imprimé</b></td><td class="num"><b>${fmtE(A_.t)}</b></td></tr>
+    ${A_.gap != null ? `<tr><td><b>Écart</b> (total imprimé − produits − avoirs)</td><td class="num"><b style="color:${Math.abs(A_.gap) > 0.1 ? 'var(--warn)' : 'var(--ok)'}">${A_.gap > 0 ? '+' : ''}${fmtE(A_.gap)}</b></td></tr>` : ''}
+  </tbody></table></div>`;
+  const hints = [];
+  if (A_.gap != null && Math.abs(A_.gap) > 0.1) {
+    if (A_.gap > 0) hints.push(`Il manque ${fmtE(A_.gap)} dans les lignes lues : une ligne oubliée, une quantité ou un prix lu trop bas, ou des frais compris dans le total.`);
+    else hints.push(`Les lignes lues dépassent le total de ${fmtE(-A_.gap)} : une ligne lue en double, un prix lu trop haut, ou une remise de pied de facture.`);
+    if (A_.sums.frais && Math.abs(A_.gap - A_.sums.frais) > 0.1 && Math.abs(A_.gap) < Math.abs(A_.sums.frais)) hints.push(`Les frais (${fmtE(A_.sums.frais)}) ne sont peut-être comptés qu'en partie dans le total HT.`);
+  }
+  A_.match.forEach(({ l, i }) => hints.push(`La ligne « ${lib(i)} » (${l.type}) fait exactement ${fmtE(Math.abs(lineAmount(l)))}, le montant de l'écart : à vérifier en priorité.`));
+  A_.incoh.forEach(({ l, i }) => hints.push(`« ${lib(i)} » : ${fmtN(l.quantite, 3)} × ${fmtE(num(l.prix_unitaire_ht_net))} = ${fmtE(Number(l.quantite) * num(l.prix_unitaire_ht_net))}, mais montant lu ${fmtE(num(l.montant_ht))}.`));
+  if (hints.length) h += `<ul class="small" style="margin:8px 0 0 18px">${hints.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
+  if (A_.prix.length) {
+    h += `<div class="group-title" style="margin-top:14px">Prix facturés différents de la fiche Toporder (± ${A_.seuil} %)</div>
+      <div class="table-wrap"><table><thead><tr><th>Ligne</th><th class="num">Facturé</th><th class="num">Fiche</th><th class="num">Écart</th></tr></thead><tbody>
+      ${A_.prix.slice(0, 15).map(({ L, pct }) => `<tr><td class="lib">${esc(L.src.libelle)}<div class="sub">${esc(L.match.n)}</div></td><td class="num">${fmtE(L.pu)}</td><td class="num">${fmtE(L.match.pa)}</td>
+        <td class="num" style="color:var(--warn)">${pct > 0 ? '+' : ''}${fmtN(pct, 1)} %</td></tr>`).join('')}</tbody></table></div>
+      ${A_.prix.length > 15 ? `<p class="small muted">et ${A_.prix.length - 15} autre(s)</p>` : ''}
+      <p class="small muted">Un écart de prix n'empêche pas l'import : le stock prend le prix facturé. L'IA peut dire s'il s'agit d'une erreur de lecture ou d'un changement de tarif.</p>`;
+  }
+  // Relecture IA
+  h += `<div class="group-title" style="margin-top:16px">Relecture du document par l'IA</div>`;
+  if (C.status === 'run') h += `<div class="loading"><span class="spinner"></span> L'IA relit le document ligne par ligne… (30 secondes à 2 minutes)</div>`;
+  else if (C.status === 'err') h += `<div class="banner error"><div class="grow">${esc(C.error)}</div></div>`;
+  if (C.report) h += controleReportHtml(inv, C);
+  else if (C.status !== 'run') h += `<p class="small muted">L'IA relit le document, compare avec ce qui a été lu, explique l'écart et propose des corrections que vous appliquez une par une.</p>`;
+  $('modalRoot').innerHTML = `<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:900px">${h}
+    <div class="modal-foot"><button class="btn" onclick="closeModal()">Fermer</button>
+      ${C.status !== 'run' ? `<button class="btn btn-primary" onclick="runControle()">${C.report ? 'Relancer la relecture IA' : "Lancer la relecture par l'IA"}</button>` : ''}</div></div></div>`;
+}
+function controleReportHtml(inv, C) {
+  const R = C.report, ex = inv.res.extraction;
+  const lib = (i) => esc((ex.lignes[i] || {}).libelle || '');
+  const grav = { erreur: 'block', attention: 'info', info: 'grey' };
+  let h = `<div class="banner info"><div class="grow">${esc(R.resume || '')}${R.total_ht_document != null ? `<br><span class="small">Total HT relu sur le document : <b>${fmtE(R.total_ht_document)}</b></span>` : ''}</div></div>`;
+  if ((R.constats || []).length) h += `<div class="table-wrap"><table><tbody>${R.constats.map(c => `<tr><td style="width:90px"><span class="badge ${grav[c.gravite] || 'grey'}">${esc(c.gravite)}</span></td>
+    <td>${c.index != null && ex.lignes[c.index] ? `<div class="lib">${lib(c.index)}</div>` : ''}<div class="small">${esc(c.probleme)}</div></td>
+    <td class="num">${c.montant_ecart != null ? fmtE(c.montant_ecart) : ''}</td></tr>`).join('')}</tbody></table></div>`;
+  const corr = (R.corrections || []).filter(c => ex.lignes[c.index]);
+  if (corr.length) {
+    const F = { quantite: 'qté', prix_unitaire_ht_net: 'PU net', montant_ht: 'montant', type: 'type' };
+    h += `<div class="group-title" style="margin-top:12px">Corrections proposées</div><div class="table-wrap"><table><tbody>${corr.map(c => {
+      const j = R.corrections.indexOf(c), l = ex.lignes[c.index];
+      const ch = Object.keys(F).filter(k => c[k] != null).map(k => `${F[k]} : ${k === 'type' ? esc(l[k]) : fmtN(l[k], 4)} → <b>${k === 'type' ? esc(c[k]) : fmtN(c[k], 4)}</b>`).join(' · ');
+      return `<tr><td><div class="lib">${lib(c.index)}</div><div class="small">${ch}</div><div class="sub">${esc(c.motif || '')}</div></td>
+        <td style="width:110px">${C.done['c' + j] ? '<span class="badge ok">Appliquée</span>' : `<button class="btn btn-sm" onclick="applyCorrection(${j})">Appliquer</button>`}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+  }
+  const miss = R.lignes_manquantes || [];
+  if (miss.length) {
+    h += `<div class="group-title" style="margin-top:12px">Lignes absentes de la lecture</div><div class="table-wrap"><table><tbody>${miss.map((l, j) => `<tr>
+      <td><div class="lib">${esc(l.libelle)}</div><div class="small">${esc(l.type)} · ${fmtN(l.quantite, 3)} ${unitLabel(l.unite)} × ${fmtE(num(l.prix_unitaire_ht_net))} = ${fmtE(num(l.montant_ht))}</div></td>
+      <td style="width:110px">${C.done['m' + j] ? '<span class="badge ok">Ajoutée</span>' : `<button class="btn btn-sm" onclick="addMissingLine(${j})">Ajouter</button>`}</td></tr>`).join('')}</tbody></table></div>
+      <p class="small muted">Une ligne ajoutée passe « À relire » : validez-la après l'avoir vérifiée sur le document.</p>`;
+  }
+  if (!corr.length && !miss.length) h += `<p class="small muted" style="margin-top:8px">Aucune correction proposée.</p>`;
+  return h;
+}
+async function runControle() {
+  const inv = cur(), C = inv.controle, ex = inv.res.extraction;
+  C.status = 'run'; C.error = ''; drawControle();
+  try {
+    const payload = await fileToPayload(inv.file);
+    const A_ = localControle(inv);
+    C.report = await call('controleApprofondi', payload, {
+      type_document: inv.head.type, total_ht: num(ex.total_ht), somme_produits_avoirs: round(A_.base, 2), somme_frais: round(A_.sums.frais, 2),
+      lignes: ex.lignes.map((l, i) => {
+        const L = inv.lines[i] || {};
+        return { i, type: l.type, libelle: l.libelle, ref: l.ref_fournisseur || '', ean: l.ean || '', quantite: l.quantite, unite: l.unite,
+          prix_unitaire_ht_net: num(l.prix_unitaire_ht_net), montant_ht: num(l.montant_ht), prix_fiche: L.match ? L.match.pa : null, produit: L.match ? L.match.n : '' };
+      })
+    });
+    C.done = {}; C.status = '';
+  } catch (err) { C.status = 'err'; C.error = err.message; }
+  if (cur() === inv && $('modalRoot').innerHTML) drawControle();
+}
+// Correction de lecture : remplace les valeurs lues ; les saisies faites sur la ligne (qté, prix, répartition) sont remises à zéro.
+function applyCorrection(j) {
+  const inv = cur(), C = inv.controle, c = C.report.corrections[j], l = inv.res.extraction.lignes[c.index];
+  ['quantite', 'prix_unitaire_ht_net', 'montant_ht', 'type'].forEach(k => { if (c[k] != null) l[k] = c[k]; });
+  l.remarque = ((l.remarque ? l.remarque + ' ; ' : '') + 'corrigé par le contrôle approfondi : ' + (c.motif || '')).trim();
+  const ov = inv.ov[c.index] || (inv.ov[c.index] = {});
+  ov.qty = null; ov.pu = null; ov.alloc = null;
+  C.done['c' + j] = true;
+  refresh(); drawControle();
+}
+function addMissingLine(j) {
+  const inv = cur(), C = inv.controle, l = C.report.lignes_manquantes[j];
+  inv.res.extraction.lignes.push(Object.assign({ confiance: 'moyenne' }, l, { a_verifier: true, remarque: 'Ligne ajoutée par le contrôle approfondi' + (l.remarque ? ' : ' + l.remarque : '') }));
+  C.done['m' + j] = true;
+  refresh(); drawControle();
+}
+
+// ── Durée de conservation ──────────────────────────────────────────
+function askDuree(i) {
+  const L = cur().lines[i], m = L.match;
+  $('modalRoot').innerHTML = `<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>Durée de conservation</h3>
+    <p class="small muted">DLC = date de livraison + durée. Utilisée quand la facture n'indique pas de DLC.</p>
+    <div class="row" style="margin-top:14px">
+      <div class="field"><label class="label">Nombre de jours</label><input type="number" min="1" id="dureeJ" style="width:110px"></div>
+      <div class="field"><label class="label">S'applique à</label><select id="dureeScope">
+        <option value="k">ce produit : ${esc(m.n)}</option>
+        ${m.f ? `<option value="f">tous les produits du fournisseur « ${esc(m.f)} »</option>` : ''}</select></div>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn btn-primary" id="dureeOk" onclick="saveDuree(${i})">Enregistrer</button></div>
+  </div></div>`;
+  $('dureeJ').focus();
+}
+async function saveDuree(i) {
+  const m = cur().lines[i].match, j = Number($('dureeJ').value), scope = $('dureeScope').value;
+  if (!(j > 0)) { toast('Nombre de jours invalide'); return; }
+  $('dureeOk').disabled = true;
+  try {
+    S.init.durees = await call('enregistrerDuree', scope === 'k' ? String(m.k) : m.f, scope === 'k' ? m.n : 'Fournisseur Toporder', j);
+    closeModal(); refresh();
+  } catch (err) { showError('Durée non enregistrée', err); $('dureeOk').disabled = false; }
+}
+
+// ── Création de produits dans Toporder (fichier d'import catalogue) ──
+// Une fiche par produit, partagée par toutes les lignes du même produit sur la facture.
+function creationKey(src) {
+  const ean = normEan(src.ean), ref = String(src.ref_fournisseur || '').trim();
+  return ean ? 'ean:' + ean : ref ? 'ref:' + ref : 'lib:' + normLabel(src.libelle);
+}
+// Nom tel que Toporder l'affichera dans la matrice de stock : « Nom du produit » + « Attribut ».
+function fullName(c) { return (String(c.nom || '').trim() + ' ' + String(c.attribut || '').trim()).trim(); }
+const ceil05 = (x) => round(Math.ceil(round(x / 0.05, 6)) * 0.05, 2);
+const catCoef = (cat) => { const c = S.init.categories.find(x => x.c === cat); return c ? c.coef : 1.55; };
+
+// Sépare le poids / la contenance du libellé : « Tomates séchées 80g » → nom « Tomates séchées », attribut « 80g ».
+function parseAttr(lib) {
+  let s = String(lib || '').trim();
+  if (s && s === s.toUpperCase()) s = s.toLowerCase();
+  s = s.charAt(0).toUpperCase() + s.slice(1);
+  const re = /(\d+\s?x\s?)?\d+(?:[.,]\d+)?\s?(kg|gr|g|cl|ml|l)\b/gi;
+  let m, last = null;
+  while ((m = re.exec(s))) last = m;
+  if (last) {
+    const attr = last[0].replace(/\s/g, '').replace(/gr$/i, 'g').toLowerCase();
+    const nom = (s.slice(0, last.index) + s.slice(last.index + last[0].length)).replace(/\s*,\s*$/, '').replace(/\s+/g, ' ').trim();
+    return { nom, attribut: attr, groupe: /l$/.test(attr) ? 'CONTENANCE' : 'POIDS' };
+  }
+  const x = /\bx\s?(\d+)\s?u?\b/i.exec(s);
+  if (x) return { nom: s.replace(x[0], '').replace(/\s+/g, ' ').trim(), attribut: 'x' + x[1], groupe: 'CONDITIONNEMENT' };
+  return { nom: s, attribut: '', groupe: '' };
+}
+function matchSupplier(s) {
+  const n = normLabel(s);
+  if (!n) return '';
+  const list = S.init.suppliers || [];
+  return list.find(x => normLabel(x) === n) || (n.length >= 4 && list.find(x => { const k = normLabel(x); return k.startsWith(n) || n.startsWith(k); })) || '';
+}
+function nextPlu(inv) {
+  const used = S.init.produits.map(p => Number(p.plu) || 0).concat(Object.values(inv.creations).map(c => Number(c.plu) || 0));
+  return Math.max(0, ...used) + 1;
+}
+function proposeCreation(inv, L) {
+  const s = L.src, a = parseAttr(s.libelle), ref = S.init.referentiel;
+  // Format absent de la désignation mais lu ailleurs sur la ligne (8 pains pour 4 kg → 500 g)
+  if (!a.attribut && L.w && s.unite !== 'KG') { a.attribut = fmtW(L.w).replace(/\s/g, ''); a.groupe = 'POIDS'; }
+  const fournisseur = matchSupplier(s.marque) || matchSupplier(inv.head.emetteur) || s.marque || inv.head.emetteur;
+  // Catégorie : celle du produit le plus proche chez le même fournisseur, sinon du produit le plus proche tout court.
+  const q = { tok: new Set(tokens(s.libelle)), tri: trigrams(s.libelle) };
+  const sameSup = S.init.produits.filter(p => normLabel(p.f) === normLabel(fournisseur))
+    .map(p => ({ p, s: similarity(q, p) })).sort((x, y) => y.s - x.s).slice(0, 3);
+  let cat = '', tvaRef = null;
+  for (const x of sameSup.concat(L.sugg.length ? L.sugg : suggest(s.libelle))) {
+    const r = (x.p.e && ref.byEan[x.p.e]) || ref.byName[normLabel(x.p.n)];
+    if (r) { cat = r[0]; tvaRef = r[1]; break; }
+  }
+  if (cat && !S.init.categories.some(c => c.c === cat)) cat = '';
+  const kg = s.unite === 'KG';
+  const pa = num(s.prix_unitaire_ht_net) || 0;
+  const tva = [5.5, 10, 20].indexOf(Number(s.taux_tva)) >= 0 ? Number(s.taux_tva) : (tvaRef || 5.5);
+  const coef = catCoef(cat);
+  return {
+    nom: a.nom, attribut: a.attribut, groupe: a.groupe, ean: normEan(s.ean) ? String(s.ean).replace(/\D/g, '') : '',
+    cat, unite: kg ? 'Kilogramme(s)' : 'Article(s)', plu: kg ? nextPlu(inv) : '', pa, tva, coef, pv: ceil05(pa * coef),
+    fournisseur, auto: !kg, src: { ref: s.ref_fournisseur || '', libelle: s.libelle, ean: s.ean || '', poids: L.w || null }
+  };
+}
+
+let C = null;
+function openCreate(i) {
+  const inv = cur(), L = inv.lines[i];
+  C = { i, f: Object.assign({}, inv.creations[L.ckey] || proposeCreation(inv, L)) };
+  // Format sans type (ex. « 462 » seul) : type déduit de l'unité ; sinon rien n'est ajouté au nom (la valeur reste proposée).
+  const a = String(C.f.attribut || '').trim().toLowerCase();
+  if (a && !ATTR_TYPES[C.f.groupe || '']?.units.length) C.f.groupe = /^x/.test(a) ? 'CONDITIONNEMENT' : /(kg|g|gr)$/.test(a) ? 'POIDS' : /(cl|ml|l)$/.test(a) ? 'CONTENANCE' : '';
+  splitAttr(C.f);
+  if (!C.f.groupe) C.f.attribut = '';
+  drawCreate();
+}
+function drawCreate() {
+  const f = C.f, L = cur().lines[C.i], s = L.src, kg = /kilo/i.test(f.unite);
+  const opt = (arr, v) => arr.map(o => `<option ${o === v ? 'selected' : ''}>${esc(o)}</option>`).join('');
+  $('modalRoot').innerHTML = `<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:700px">
+    <h3>Créer le produit dans Toporder</h3>
+    <p class="small muted">Facture ${esc(cur().head.emetteur)} : <b>${esc(s.libelle)}</b>${s.ean ? ' · EAN ' + esc(s.ean) : ''} — ${fmtN(s.quantite, 3)} ${unitLabel(s.unite)} × ${fmtE(num(s.prix_unitaire_ht_net))}</p>
+    <div class="inv-head" style="margin-top:14px">
+      <div class="field" style="grid-column:span 2"><label class="label">Nom du produit</label><input type="text" value="${esc(f.nom)}" oninput="C.f.nom=this.value;drawName()"></div>
+      <div class="field"><label class="label">Format ajouté au nom</label><select onchange="setAttrType(this.value)">${Object.entries(ATTR_TYPES).map(([k, t]) => `<option value="${k}" ${k === (f.groupe || '') ? 'selected' : ''}>${t.label}</option>`).join('')}</select></div>
+      <div class="field"><label class="label">${f.groupe ? ATTR_TYPES[f.groupe].ask : 'Valeur'}</label>${f.groupe ? `<div style="display:flex;gap:6px;align-items:center">
+        ${f.groupe === 'CONDITIONNEMENT' ? '<span>x</span>' : ''}<input type="text" inputmode="decimal" id="crAttrV" value="${esc(C.av)}" placeholder="${ATTR_TYPES[f.groupe].ph}" style="min-width:0;flex:1" oninput="C.av=this.value;composeAttr()">
+        ${ATTR_TYPES[f.groupe].units.length > 1 ? `<select style="width:auto" onchange="C.au=this.value;composeAttr()">${ATTR_TYPES[f.groupe].units.map(u => `<option ${u === C.au ? 'selected' : ''}>${u}</option>`).join('')}</select>` : `<span>${ATTR_TYPES[f.groupe].units[0] || ''}</span>`}</div>`
+        : '<div class="small muted" style="padding:8px 0">rien n\'est ajouté au nom</div>'}</div>
+      <div class="field" style="grid-column:span 2"><label class="label">Catégorie</label><select onchange="setCat(this.value)"><option value="">— choisir —</option>${opt(S.init.categories.map(c => c.c), f.cat)}</select></div>
+      <div class="field"><label class="label">Code-barres (EAN)</label><input type="text" inputmode="numeric" value="${esc(f.ean)}" oninput="C.f.ean=this.value"></div>
+      <div class="field"><label class="label">Unité</label><select onchange="C.f.unite=this.value;C.f.auto=!/kilo/i.test(this.value);if(!/kilo/i.test(this.value))C.f.plu='';else if(!C.f.plu)C.f.plu=nextPlu(cur());drawCreate()">${opt(['Article(s)', 'Kilogramme(s)'], f.unite)}</select></div>
+      ${kg ? `<div class="field"><label class="label">Code PLU (à saisir dans Toporder)</label><input type="number" value="${esc(f.plu)}" oninput="C.f.plu=this.value" title="Le fichier d'import Toporder n'a pas de colonne PLU : saisissez ce code sur la fiche produit dans Toporder après l'import."></div>` : ''}
+      <div class="field"><label class="label">Prix d'achat HT${kg ? ' / kg' : ''}</label><input type="text" inputmode="decimal" value="${fmtN(f.pa, 4)}" oninput="C.f.pa=num(this.value)||0;drawPv(true)"></div>
+      <div class="field"><label class="label">TVA (%)</label><select onchange="C.f.tva=Number(this.value)">${[5.5, 10, 20].map(t => `<option value="${t}" ${t === Number(f.tva) ? 'selected' : ''}>${fmtN(t, 1)}</option>`).join('')}</select></div>
+      <div class="field"><label class="label">Coefficient</label><input type="text" inputmode="decimal" id="crCoef" value="${fmtN(f.coef, 2)}" oninput="C.f.coef=num(this.value)||0;drawPv(true)"></div>
+      <div class="field"><label class="label">Prix de vente TTC</label><input type="text" inputmode="decimal" id="crPv" value="${fmtN(f.pv, 2)}" oninput="C.f.pv=num(this.value)||0"></div>
+      <div class="field" style="grid-column:span 2"><label class="label">Fournisseur</label><input type="text" list="supList" value="${esc(f.fournisseur)}" oninput="C.f.fournisseur=this.value">
+        <datalist id="supList">${(S.init.suppliers || []).map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
+    </div>
+    <p class="small muted">Nom affiché dans Toporder : <b id="crName">${nameHtml(f)}</b> (nom du produit + format). Prix de vente = prix d'achat × coefficient de la catégorie, arrondi aux 5 centimes supérieurs (comme le catalogue initial).
+      ${S.init.referentiel.info ? '' : '<br>Astuce : déposez une fois le fichier d\'import catalogue (VF_Matrice…) via « Mettre à jour le catalogue » pour que la catégorie soit proposée automatiquement.'}</p>
+    <div id="crErr"></div>
+    <div class="modal-foot"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveCreate()">Enregistrer la fiche</button></div>
+  </div></div>`;
+}
+function drawName() { $('crName').innerHTML = nameHtml(C.f); }
+// Nom + format, le format mis en évidence avec son type (« Tomates séchées 80g » — poids).
+function nameHtml(f) {
+  const nom = esc(String(f.nom || '').trim()), a = String(f.attribut || '').trim();
+  return a ? `${nom} <span style="background:var(--accent-soft);padding:0 4px;border-radius:4px">${esc(a)}</span> <span class="muted" style="font-weight:400">(${ATTR_TYPES[f.groupe] ? ATTR_TYPES[f.groupe].label : 'format'})</span>` : nom;
+}
+// Format (attribut Toporder) : type → libellé, question, unités. Le texte enregistré est composé : « 80g », « 75cl », « x6 ».
+const ATTR_TYPES = {
+  '': { label: 'aucun', ask: '', units: [], ph: '' },
+  POIDS: { label: 'poids', ask: 'Poids', units: ['g', 'kg'], ph: 'ex. 250' },
+  CONTENANCE: { label: 'contenance', ask: 'Contenance', units: ['cl', 'ml', 'l'], ph: 'ex. 75' },
+  CONDITIONNEMENT: { label: 'conditionnement / lot', ask: "Nombre d'unités du lot", units: [''], ph: 'ex. 6' }
+};
+// Découpe l'attribut existant (« 80g », « 1,5 kg », « x6 », « 462 ») en valeur + unité pour le formulaire.
+function splitAttr(f) {
+  const m = /^x?\s*(\d+(?:[.,]\d+)?)\s*([a-z]*)/i.exec(String(f.attribut || '').trim());
+  const units = (ATTR_TYPES[f.groupe] || ATTR_TYPES['']).units;
+  C.av = m ? m[1] : '';
+  C.au = m && units.indexOf(m[2].toLowerCase().replace(/^gr$/, 'g')) >= 0 ? m[2].toLowerCase().replace(/^gr$/, 'g') : (units[0] || '');
+}
+function composeAttr() {
+  const f = C.f, v = String(C.av || '').trim().replace('.', ',');
+  f.attribut = !f.groupe || !v ? '' : f.groupe === 'CONDITIONNEMENT' ? 'x' + v : v + C.au;
+  drawName();
+}
+function setAttrType(t) {
+  C.f.groupe = t;
+  const units = ATTR_TYPES[t].units;
+  if (units.indexOf(C.au) < 0) C.au = units[0] || '';
+  composeAttr(); drawCreate();
+}
+function drawPv(fromPa) { C.f.pv = ceil05(C.f.pa * C.f.coef); $('crPv').value = fmtN(C.f.pv, 2); }
+function setCat(v) { C.f.cat = v; C.f.coef = catCoef(v); C.f.pv = ceil05(C.f.pa * C.f.coef); $('crCoef').value = fmtN(C.f.coef, 2); $('crPv').value = fmtN(C.f.pv, 2); }
+function saveCreate() {
+  const inv = cur(), L = inv.lines[C.i], f = C.f, errs = [];
+  f.nom = String(f.nom || '').trim(); f.attribut = String(f.attribut || '').trim();
+  if (!f.nom) errs.push('Le nom est obligatoire.');
+  if (!f.cat) errs.push('Choisissez une catégorie.');
+  if (!(f.pv > 0)) errs.push('Le prix de vente doit être positif.');
+  if (f.attribut && !f.groupe) errs.push('Indiquez le type (poids, contenance ou conditionnement).');
+  if (f.groupe && !f.attribut) errs.push(`Indiquez ${ATTR_TYPES[f.groupe].ask.toLowerCase()}, ou choisissez le format « aucun ».`);
+  const others = Object.entries(inv.creations).filter(([k]) => k !== L.ckey).map(([, c]) => c);
+  if (f.ean) {
+    const e = normEan(f.ean);
+    if (!e) errs.push('Code-barres invalide (8 à 13 chiffres).');
+    else if (S.idx.byEan[e]) errs.push(`Ce code-barres existe déjà dans Toporder : « ${S.idx.byEan[e].n} ». Utilisez plutôt « Associer ».`);
+    else if (others.some(c => normEan(c.ean) === e)) errs.push('Ce code-barres est déjà utilisé par une autre fiche de cette facture.');
+  }
+  if (/kilo/i.test(f.unite)) {
+    const p = Number(f.plu);
+    if (p > 0 && (S.init.produits.some(x => Number(x.plu) === p) || others.some(c => Number(c.plu) === p))) errs.push(`Le code PLU ${p} est déjà utilisé.`);
+  }
+  const same = S.init.produits.find(p => normLabel(p.n) === normLabel(fullName(f)));
+  if (same) errs.push(`Un produit « ${same.n} » existe déjà : utilisez « Associer », ou changez le nom.`);
+  if (errs.length) { $('crErr').innerHTML = `<div class="banner error"><div class="grow">${errs.map(esc).join('<br>')}</div></div>`; return; }
+  inv.creations[L.ckey] = f;
+  inv.creationFile = null; inv.creationDone = false;
+  closeModal(); refresh();
+}
+function cancelCreate(i) { const inv = cur(); delete inv.creations[inv.lines[i].ckey]; inv.creationFile = null; inv.creationDone = false; refresh(); }
+
+async function generateCreation() {
+  const inv = cur();
+  toast('Génération du fichier de création…');
+  try {
+    inv.creationFile = await call('genererFichierProduits', { emetteur: inv.head.emetteur, numero: inv.head.numero, produits: Object.values(inv.creations) });
+    download(inv.creationFile);
+    render(); showCreateSteps();
+  } catch (err) { showError('Création du fichier impossible', err); }
+}
+function showCreateSteps() {
+  const inv = cur(), f = inv.creationFile, kg = Object.values(inv.creations).filter(c => /kilo/i.test(c.unite));
+  $('modalRoot').innerHTML = `<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>Créer ${f.produits > 1 ? `les ${f.produits} produits` : 'le produit'} dans Toporder</h3>
+    <ol style="margin:14px 0 0 18px;display:flex;flex-direction:column;gap:12px">
+      <li>Vous avez téléchargé le fichier <b>${esc(f.name)}</b> (<a href="#" onclick="download(cur().creationFile);return false">le retélécharger</a>).</li>
+      <li>Dans Toporder : <b>Gestion du catalogue → Produits → Import catalogue</b>, importez ce fichier.</li>
+      ${kg.length ? `<li>Produits au kilo : saisissez leur <b>code PLU</b> sur la fiche produit dans Toporder (${kg.map(c => esc(fullName(c)) + (c.plu ? ' → ' + esc(c.plu) : '')).join(', ')}) : le fichier d'import n'a pas de colonne PLU.</li>` : ''}
+      <li>Puis dans Toporder : <b>Stock → Import de stock</b>, téléchargez la <b>matrice</b> (.xlsx) : elle contient la Clé Toporder ${f.produits > 1 ? 'des nouveaux produits' : 'du nouveau produit'}.</li>
+      <li>Importez cette matrice ici avec le bouton ci-dessous.</li>
+    </ol>
+    <p class="small muted" style="margin-top:14px">Sans la Clé Toporder, le fichier d'import de stock ne peut pas être lu par Toporder.
+      Une fois la matrice importée, ${f.produits > 1 ? 'les lignes de ces produits sont reconnues' : 'la ligne de ce produit est reconnue'} et entre${f.produits > 1 ? 'nt' : ''} dans le fichier de stock ; les prochains BL / factures ${f.produits > 1 ? 'les' : 'le'} reconnaîtront aussi.</p>
+    <div class="modal-foot"><button class="btn" onclick="closeModal()">Plus tard</button><button class="btn btn-primary" onclick="document.getElementById('matrixInput').click()">Importer la nouvelle matrice</button></div>
+  </div></div>`;
+}
+// Après une mise à jour du catalogue : les produits créés avec un EAN sont reconnus d'eux-mêmes ;
+// ceux sans EAN sont retrouvés par leur nom exact (créé à l'instant pour cette ligne) et la correspondance est mémorisée.
+// Produit du catalogue retrouvé par son nom : exact (nom + format, ou nom seul), sinon unique produit dont le nom
+// contient tous les mots (Toporder peut présenter « nom + attribut » un peu autrement), même fournisseur de préférence.
+function findByName(full, nom, fourn) {
+  const real = S.init.produits.filter(p => !p.prov);
+  const one = (hits) => [...new Set(hits.map(p => p.k))].length === 1 ? hits[0] : null;
+  const exact = (x) => x ? one(real.filter(p => normLabel(p.n) === normLabel(x))) : null;
+  const p = exact(full) || exact(nom);
+  if (p) return p;
+  const w = normLabel(full).split(' ').filter(Boolean);
+  if (!w.length) return null;
+  const hits = real.filter(p => { const n = ' ' + normLabel(p.n) + ' '; return w.every(x => n.indexOf(' ' + x + ' ') >= 0); });
+  const same = fourn ? hits.filter(p => normLabel(p.f) === normLabel(fourn)) : [];
+  return one(same.length ? same : hits);
+}
+async function linkCreatedProducts() {
+  let n = 0;
+  for (const inv of S.queue) {
+    if (inv.status !== 'pret' || !inv.creations) continue;
+    for (const c of Object.values(inv.creations)) {
+      const e = normEan(c.ean);
+      if (e && S.idx.byEan[e] && !S.idx.byEan[e].prov) { n++; continue; }
+      const p = findByName(fullName(c), c.nom, c.fournisseur);
+      if (!p) continue;
+      S.init.correspondances = await call('enregistrerCorrespondance', {
+        emetteur: inv.head.emetteur, ref: c.src.ref, libelle: c.src.libelle, poids: c.src.poids, cle: p.k, produit: p.n, coef: null
+      });
+      buildIndex(); n++;
+    }
+  }
+  return n;
+}
+
+// ── Génération du fichier ──────────────────────────────────────────
+// Retourne true si le fichier a été généré (et l'import enregistré dans l'historique).
+async function generate() {
+  const inv = cur();
+  const lignes = [];
+  inv.lines.filter(l => l.included).forEach(L => L.alloc.forEach(a => {
+    if (Number(a.q) > 0) lignes.push({ cle: L.match.k, ean: L.match.e, lieu: a.lieu, qte: Number(a.q), pu: L.pu || 0, dlc: isoToFr(L.dlc) });
+  }));
+  // Produit à créer dont le fichier de création n'a pas été téléchargé : à faire avant, sinon il n'entrera jamais en stock.
+  const crea = Object.values(inv.creations || {});
+  if (crea.length && !inv.creationFile) {
+    const go = await dialog({
+      title: 'Fichier de création non téléchargé', tone: 'warn',
+      body: `<p>Attention, vous n'avez pas téléchargé le fichier de création ${crea.length > 1 ? `des ${crea.length} produits créés` : 'du produit créé'} (${crea.map(c => esc(fullName(c))).join(', ')}).</p>
+        <p>Faites-le avant de générer le fichier d'import, pour que le stock soit correctement mis à jour.</p>`,
+      ok: 'Générer le fichier de création', cancel: 'Annuler'
+    });
+    if (go === true) await generateCreation();
+    return false;
+  }
+  if (crea.length) {
+    const go = await dialog({
+      title: 'Nouvelle matrice à importer', tone: 'warn',
+      body: `<p>Le fichier de création a été téléchargé, mais ${crea.length > 1 ? 'les produits créés n\'ont' : 'le produit créé n\'a'} pas encore de Clé Toporder dans l'appli (${crea.map(c => esc(fullName(c))).join(', ')}).</p>
+        <p>Après les avoir importés dans Toporder, téléchargez la matrice (<b>Stock → Import de stock</b>) et importez-la ici : ${crea.length > 1 ? 'leurs lignes entreront' : 'sa ligne entrera'} alors dans le fichier de stock.</p>`,
+      ok: 'Importer la nouvelle matrice', cancel: 'Annuler'
+    });
+    if (go === true) $('matrixInput').click();
+    return false;
+  }
+  // Mêmes conditions que le bouton « Générer » (utile quand on passe par « Nouvel import »).
+  const why = !lignes.length ? "Aucune ligne n'est prête à importer : traitez les lignes à vérifier."
+    : (inv.doublon && !inv.force) ? 'Ce document a déjà été traité : cochez « Traiter quand même » pour le réimporter.'
+    : !inv.head.date ? 'Saisissez la date du document dans l\'en-tête.' : '';
+  if (why) { await showError('Impossible de générer le fichier', why); return false; }
+  const todoLines = inv.lines.filter(l => l.kind === 'produit' && !l.included), todo = todoLines.length;
+  if (todo) {
+    const s = (n) => n > 1 ? 's' : '';
+    const lieux = [...new Set(lignes.map(l => l.lieu))].map(lieuLabel).join(', ');
+    const ok = await dialog({
+      tone: 'warn', title: `Générer le fichier avec ${lignes.length} ligne${s(lignes.length)} ?`,
+      body: `<p><b>${todo} ligne${s(todo)} à vérifier ne ser${todo > 1 ? 'ont' : 'a'} pas dans le fichier :</b></p>
+        <ul>${todoLines.slice(0, 6).map(l => `<li>${esc(l.src.libelle)} <span class="muted small">— ${esc(l.alerts.filter(a => ALERTS[a.code].block).map(a => ALERTS[a.code].label).join(', '))}</span></li>`).join('')}
+          ${todo > 6 ? `<li class="muted">et ${todo - 6} autre${s(todo - 6)}</li>` : ''}</ul>
+        <p class="muted small">Pour les ajouter plus tard : redéposez ${inv.head.type === 'BL' ? 'le BL' : 'la facture'} et cochez « Traiter quand même ».</p>
+        <p class="small">Boutique : <b>${esc(lieux)}</b></p>`,
+      ok: 'Générer le fichier', cancel: 'Revenir aux lignes'
+    });
+    if (!ok) return false;
+  }
+  const btn = $('genBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Génération…'; }
+  try {
+    inv.result = await call('genererFichier', {
+      emetteur: inv.head.emetteur, numero: inv.head.numero, dateFacture: isoToFr(inv.head.date), typeDocument: inv.head.type,
+      lieuDefaut: inv.lieu, force: inv.force, nbAlertes: todo, lignes,
+      totalHt: num(inv.res.extraction.total_ht), historique: historyLines(inv)
+    });
+    inv.status = 'genere';
+    loadDashboard();
+    recheckDoublons(inv);
+    inv.result.files.forEach(f => download(f));
+    render();
+    return true;
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = "Générer le fichier d'import"; }
+    // Déjà enregistré entre la lecture et la génération (« Nouvel import → Enregistrer », autre poste, même document déposé deux fois) :
+    // l'écran n'affichait pas l'alerte. On la rafraîchit et on propose directement de traiter quand même.
+    if (/^DOUBLON:/.test(err.message)) {
+      try { const r = await call('verifierDoublon', inv.head.emetteur, inv.head.numero, inv.lieu); inv.doublon = r.doublon; inv.bls = r.bls || {}; } catch (e) {}
+      refresh();
+      const d = inv.doublon;
+      const choice = await dialog({
+        tone: 'warn', title: 'Document déjà enregistré',
+        body: `<p>${esc(err.message.replace(/^DOUBLON:\s*/, '').replace(/ Cochez.*$/, ''))}</p>
+          <p>Le réimporter ajouterait la marchandise <b>une deuxième fois</b> au stock. Vérifiez dans l'historique que c'est bien le même document.</p>`,
+        ok: 'Traiter quand même', alt: d && d.id ? "Voir dans l'historique" : '', cancel: 'Annuler'
+      });
+      if (choice === true) { inv.force = true; refresh(); return generate(); }
+      if (choice === 'alt') showHistoryById(d.id);
+      return false;
+    }
+    await showError('Génération impossible', err);
+    return false;
+  }
+}
+// Après un enregistrement : les autres documents de la file peuvent être devenus des doublons (même BL déposé deux fois).
+function recheckDoublons(except) {
+  S.queue.forEach(q => {
+    if (q === except || q.status !== 'pret') return;
+    call('verifierDoublon', q.head.emetteur, q.head.numero, q.lieu).then(r => {
+      q.doublon = r.doublon; q.bls = r.bls || {}; if (!r.doublon) q.force = false;
+      if (q === cur()) refresh(); else evaluate(q);
+    }).catch(() => {});
+  });
+}
+async function showHistoryById(id) {
+  if (!S.hist) await loadDashboard();
+  const e = (S.hist || []).find(x => x.id === id);
+  if (e) openHistoryEntry(e); else { setView('historique'); }
+}
+
+// ── Nouvel import ──────────────────────────────────────────────────
+// Ferme le document affiché pour en déposer un autre. S'il n'est pas encore enregistré (fichier non généré),
+// propose de l'enregistrer (générer le fichier d'import + historique) ou de l'abandonner.
+async function newImport() {
+  const inv = cur();
+  if (inv && inv.status === 'pret') {
+    const doc = inv.head.type === 'BL' ? 'le BL' : 'la facture';
+    const ready = inv.lines.filter(l => l.included).length;
+    const choice = await dialog({
+      tone: 'warn', title: `Enregistrer ${doc} ${inv.head.emetteur || ''} ${inv.head.numero || ''} avant de passer à un autre import ?`.replace(/\s+/g, ' '),
+      body: `<p><b>Enregistrer</b> génère le fichier d'import Toporder (${ready} ligne${ready > 1 ? 's' : ''} prête${ready > 1 ? 's' : ''}) et l'ajoute à l'historique et au tableau de bord.</p>
+        <p><b>Ne pas enregistrer</b> abandonne ${doc} : rien n'est gardé, il faudra la redéposer pour la traiter.</p>`,
+      ok: 'Enregistrer', alt: 'Ne pas enregistrer', cancel: 'Annuler'
+    });
+    if (choice === false) return;
+    if (choice === true && !(await generate())) return;
+  }
+  // On retire le document de la file (statut « clos ») plutôt que de le supprimer : la lecture en cours n'est pas perturbée.
+  if (inv && inv.status !== 'lecture' && inv.status !== 'attente') inv.status = 'clos';
+  const next = S.queue.findIndex(q => q.status === 'pret' || q.status === 'lecture' || q.status === 'attente');
+  S.current = next;
+  S.view = 'factures';
+  closeModal(); render(); window.scrollTo(0, 0);
+  if (next < 0) toast('Prêt pour un nouvel import : déposez une facture ou un BL');
+}
+// Détail enregistré dans l'historique : chaque ligne de la facture, importée ou non (valeurs seulement).
+function historyLines(inv) {
+  const out = [];
+  const motifs = (L, block) => L.alerts.filter(a => ALERTS[a.code].block === block).map(a => ALERTS[a.code].label + ' : ' + a.msg).join(' | ');
+  inv.lines.forEach(L => {
+    const s = L.src;
+    const base = {
+      type: L.kind, libelle: s.libelle, ref: s.ref_fournisseur || '', ean: s.ean || '', qteFacture: num(s.quantite), uniteFacture: s.unite,
+      puFacture: num(s.prix_unitaire_ht_net), montantFacture: num(s.montant_ht), dlcFacture: isoToFr(s.dlc),
+      cle: L.match ? L.match.k : '', produit: L.match ? L.match.n : '',
+      bl: inv.head.type === 'BL' ? inv.head.numero : (s.bl_origine || '')
+    };
+    if (L.included) {
+      L.alloc.filter(a => Number(a.q) > 0).forEach(a => out.push(Object.assign({}, base, {
+        statut: 'importée', motif: motifs(L, false), lieu: a.lieu, qte: Number(a.q), unite: L.match.u,
+        pu: L.pu, valeur: round(Number(a.q) * (L.pu || 0), 2), dlc: isoToFr(L.dlc)
+      })));
+    } else {
+      out.push(Object.assign({}, base, { statut: 'non importée', motif: L.kind === 'frais' || L.kind === 'autre' || L.kind === 'non_livre' ? kindMotif(L) : motifs(L, true) }));
+    }
+  });
+  return out;
+}
+
+// ── Historique ─────────────────────────────────────────────────────
+function setView(v) {
+  S.view = v; S.histOpen = null;
+  // Affiché tout de suite avec les données préchargées, puis remis à jour en silence (autre poste, autre utilisateur).
+  if (v === 'historique' || v === 'dashboard') loadDashboard();
+  render(); window.scrollTo(0, 0);
+}
+function openHistory(i) { openHistoryEntry(S.histFiltered[i]); }
+function openHistoryEntry(e) {
+  S.view = 'historique';
+  S.histOpen = { e, detail: (S.details || {})[e.id] || null };
+  render(); window.scrollTo(0, 0);
+  if (S.histOpen.detail) return;
+  call('getHistoriqueDetail', e.id, e.emetteur, e.numero).then(d => {
+    if (e.id) (S.details = S.details || {})[e.id] = d;
+    if (S.histOpen && S.histOpen.e === e) { S.histOpen.detail = d; render(); }
+  }).catch(err => { showError('Détail indisponible', err); });
+}
+async function deleteHistory() {
+  const e = S.histOpen.e, doc = e.type === 'BL' ? 'le BL' : 'la facture';
+  const ok = await dialog({
+    tone: 'danger', title: `Supprimer ${doc} ${e.emetteur} n° ${e.numero} de l'historique ?`,
+    body: `<p>${esc(lieuLabel(e.lieu))} · traité${e.type === 'BL' ? '' : 'e'} le ${esc(e.traite)}</p>
+      <p><b>Rien ne change dans Toporder</b> : si le fichier a déjà été importé, le stock reste tel quel.</p>
+      <p class="muted small">${doc.charAt(0).toUpperCase() + doc.slice(1)} pourra de nouveau être traité${e.type === 'BL' ? '' : 'e'} sans l'alerte « déjà traitée », et disparaîtra du tableau de bord.</p>`,
+    ok: 'Supprimer', cancel: 'Annuler'
+  });
+  if (!ok) return;
+  // Retirée de l'écran tout de suite ; le Sheet est mis à jour en arrière-plan (remise en place si ça échoue).
+  const hist = S.hist, dash = S.dash;
+  S.hist = hist.filter(x => x !== e);
+  if (dash) S.dash = Object.assign({}, dash, { imports: dash.imports.filter(x => x !== e) });
+  if (S.details) delete S.details[e.id];
+  S.histOpen = null; render(); toast('Suppression en cours…');
+  try {
+    await call('supprimerHistorique', e.id, e.row, e.emetteur, e.numero);
+    toast('Entrée supprimée');
+    loadDashboard();
+    S.queue.forEach(q => { if (q.status === 'pret') { call('verifierDoublon', q.head.emetteur, q.head.numero, q.lieu).then(r => { q.doublon = r.doublon; q.bls = r.bls || {}; if (!r.doublon) q.force = false; evaluate(q); }).catch(() => {}); } });
+  } catch (err) {
+    S.hist = hist; S.dash = dash; render();
+    showError('Suppression impossible', err);
+  }
+}
+
+function renderHistory() {
+  if (!S.hist && !S.dashError) return `<div class="panel loading"><span class="spinner"></span> Chargement de l'historique…</div>`;
+  if (!S.hist) return `<div class="banner error"><div class="grow">${esc(S.dashError)}</div><button class="btn btn-sm" onclick="loadDashboard();render()">Réessayer</button></div>`;
+  if (S.histOpen) return renderHistoryDetail();
+  const q = normLabel(S.histQ || '');
+  const list = S.hist.filter(e => !q || normLabel(`${e.emetteur} ${e.numero} ${e.lieu} ${e.dateFacture} ${e.auteur}`).indexOf(q) >= 0);
+  S.histFiltered = list;
+  const valeur = list.reduce((s, e) => s + (e.valeur || 0), 0);
+  let h = `<div class="panel"><div class="panel-head">Factures et BL traités <span class="spacer"></span>
+      <input type="search" id="histQ" placeholder="Rechercher (fournisseur, n°, boutique…)" value="${esc(S.histQ || '')}" oninput="S.histQ=this.value;clearTimeout(S.histT);S.histT=setTimeout(render,250)" style="min-width:240px"></div>`;
+  if (!list.length) return h + `<p class="muted">${S.hist.length ? 'Aucune facture ne correspond.' : 'Aucune facture traitée pour l\'instant.'}</p></div>`;
+  h += `<div class="stats"><div class="stat"><b>${list.length}</b> facture${list.length > 1 ? 's' : ''}</div>
+    <div class="stat ok"><b>${fmtN(list.reduce((s, e) => s + e.importees, 0), 0)}</b> lignes importées</div>
+    <div class="stat"><b>${fmtN(valeur, 0)} €</b> HT de marchandises</div></div>
+    <div class="table-wrap"><table style="min-width:760px"><thead><tr><th>Traité le</th><th>Fournisseur</th><th>Document</th><th>Boutique</th>
+    <th>Importées</th><th>Non importées</th><th>Valeur HT</th><th>Par</th><th></th></tr></thead><tbody>
+    ${list.map((e, i) => `<tr><td>${esc(e.traite)}</td><td class="lib">${esc(e.emetteur)}</td>
+      <td>${e.type === 'BL' ? '<span class="badge grey">BL</span>' : ''}${esc(e.numero)}${e.dateFacture ? `<div class="sub">du ${esc(e.dateFacture)}</div>` : ''}${e.force ? '<div class="sub" style="color:var(--warn)">retraitée (doublon forcé)</div>' : ''}</td>
+      <td>${esc(e.lieu)}</td><td>${e.importees}</td><td>${e.alertes ? `<span style="color:var(--warn)">${e.alertes}</span>` : '0'}</td>
+      <td>${e.valeur != null ? fmtE(e.valeur) : '—'}</td><td class="small">${esc(e.auteur)}</td>
+      <td style="white-space:nowrap"><button class="btn btn-sm" onclick="openHistory(${i})">Détail</button>
+        ${e.id && e.importees ? `<button class="btn btn-sm" title="Retélécharger le fichier d'import Toporder" onclick="redownload('${esc(e.id)}', this)">Fichier</button>` : ''}</td></tr>`).join('')}
+    </tbody></table></div></div>`;
+  return h;
+}
+
+function renderHistoryDetail() {
+  const { e, detail } = S.histOpen;
+  let h = `<div class="panel"><div class="panel-head"><button class="btn btn-sm" onclick="S.histOpen=null;render()">‹ Retour</button>
+      ${esc(e.emetteur)} · ${e.type === 'BL' ? 'BL' : 'facture'} ${esc(e.numero)}${e.dateFacture ? ' du ' + esc(e.dateFacture) : ''}<span class="spacer"></span>
+      ${e.id ? `<button class="btn btn-sm btn-primary" onclick="redownload('${esc(e.id)}', this)">Retélécharger le fichier d'import</button>` : ''}
+      <button class="btn btn-sm" style="color:var(--error)" onclick="deleteHistory()">Supprimer de l'historique</button></div>
+    <p class="small muted" style="margin-bottom:12px">Traitée le ${esc(e.traite)}${e.auteur ? ' par ' + esc(e.auteur) : ''} · ${esc(e.lieu)}
+      ${e.totalHt != null ? ' · total HT facture ' + fmtE(e.totalHt) : ''}${e.force ? ' · doublon forcé' : ''}
+      ${e.fichiers.filter(f => !/^https?:/.test(f)).map(f => ` · ${esc(f)}`).join('')}</p>`;
+  if (!detail) return h + `<div class="loading"><span class="spinner"></span> Chargement du détail…</div></div>`;
+  const imp = detail.lignes.filter(l => l.statut === 'importée'), non = detail.lignes.filter(l => l.statut !== 'importée');
+  if (!detail.lignes.length) h += `<div class="banner info"><div class="grow">Détail des lignes non disponible (facture traitée avant l'ajout de l'historique détaillé).</div></div>`;
+  h += `<div class="stats"><div class="stat ok"><b>${imp.length}</b> lignes importées</div><div class="stat warn"><b>${non.filter(l => !/^Frais/.test(l.motif)).length}</b> non importées</div>
+    <div class="stat"><b>${fmtN(e.valeur || 0, 2)} €</b> HT importés</div></div>`;
+  if (imp.length) {
+    h += `<div class="group-title">Importées dans Toporder</div><div class="table-wrap"><table><thead><tr><th>Ligne facture</th><th>Produit Toporder</th><th>Boutique</th><th>Qté</th><th>PU HT</th><th>Valeur</th><th>DLC</th><th>Remarque</th></tr></thead><tbody>
+      ${imp.map(l => `<tr><td><div class="lib">${esc(l.libelle)}</div><div class="sub">${[l.ref ? 'Réf. ' + l.ref : '', l.ean ? 'EAN ' + l.ean : ''].filter(Boolean).map(esc).join(' · ')}</div></td>
+        <td>${esc(l.produit)}<div class="sub">Clé ${esc(l.cle)}</div></td><td>${esc(l.lieu)}</td><td>${fmtN(l.qte, 3)} <span class="sub">${esc(l.unite)}</span></td>
+        <td>${fmtE(num(l.pu))}</td><td>${fmtE(num(l.valeur))}</td><td>${esc(l.dlc) || '—'}</td><td class="small" style="color:var(--warn)">${esc(l.motif)}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+  if (non.length) {
+    h += `<div class="group-title">Non importées</div><div class="table-wrap"><table><thead><tr><th>Ligne facture</th><th>Qté facture</th><th>Montant HT</th><th>Motif</th></tr></thead><tbody>
+      ${non.map(l => `<tr><td><div class="lib">${esc(l.libelle)}</div><div class="sub">${[l.type, l.ref ? 'Réf. ' + l.ref : '', l.ean ? 'EAN ' + l.ean : ''].filter(Boolean).map(esc).join(' · ')}</div></td>
+        <td>${l.qteFacture !== '' ? fmtN(num(l.qteFacture), 3) + ' ' + esc(unitLabel(l.uniteFacture)) : '—'}</td><td>${fmtE(num(l.montantFacture))}</td><td class="small">${esc(l.motif)}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+  if (detail.crees.length) {
+    h += `<div class="group-title">Produits créés depuis cette facture</div><div class="table-wrap"><table><thead><tr><th>Produit</th><th>Catégorie</th><th>EAN</th><th>Achat HT</th><th>Vente TTC</th><th>Fournisseur</th><th>Fichier généré le</th></tr></thead><tbody>
+      ${detail.crees.map(c => `<tr><td class="lib">${esc(c.nom)}<div class="sub">${esc(c.unite)} · TVA ${esc(c.tva)} %</div></td><td>${esc(c.cat)}</td><td>${esc(c.ean) || '—'}</td>
+        <td>${fmtE(num(c.pa))}</td><td>${fmtE(num(c.pv))}</td><td>${esc(c.fournisseur)}</td><td class="small">${esc(c.date)}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+  return h + `</div>`;
+}
+
+// ── Tableau de bord : entrées en stock par boutique ────────────────
+// Une couleur par boutique, dans l'ordre fixe des lieux (jamais selon le classement).
+const SERIES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100'];
+const DAY = 86400000;
+const pad2 = (n) => String(n).padStart(2, '0');
+const unitShort = (u) => /kilo/i.test(u) ? 'kg' : 'art.';
+
+// Historique + tableau de bord en un seul appel. Spinner seulement au tout premier chargement : ensuite les données
+// déjà en mémoire restent affichées pendant la mise à jour, et l'écran n'est redessiné que s'il les montre
+// (jamais pendant la vérification d'une facture, pour ne pas perdre une saisie en cours).
+function loadDashboard() {
+  if (S.dashReq) return S.dashReq;
+  S.dashLoading = !S.dash; S.dashError = null;
+  const onView = () => S.view === 'historique' || S.view === 'dashboard';
+  S.dashReq = call('getDashboard').then(d => {
+    const byImp = {};
+    d.lignes.forEach(l => (byImp[l[0]] = byImp[l[0]] || []).push({ lieu: l[1], cle: l[2], produit: l[3], qte: l[4], unite: l[5], valeur: l[6] }));
+    d.byImp = byImp; S.dash = d; S.hist = d.imports;
+    prefetchDetails();
+  }).catch(err => { if (!S.dash) S.dashError = err.message; })
+    .then(() => { S.dashLoading = false; S.dashReq = null; const f = document.activeElement; if (onView() && !(f && /^(INPUT|TEXTAREA|SELECT)$/.test(f.tagName))) render(); });
+  return S.dashReq;
+}
+// Détail des 40 derniers documents chargé d'avance (un seul appel) : « Détail » s'ouvre sans attente.
+function prefetchDetails() {
+  const known = S.details || {};
+  const todo = S.hist.filter(e => e.id && !known[e.id]).slice(0, 40).map(e => ({ id: e.id, emetteur: e.emetteur, numero: e.numero }));
+  if (!todo.length) return;
+  call('getHistoriqueDetails', todo).then(map => {
+    S.details = Object.assign(S.details || {}, map);
+    if (S.histOpen && !S.histOpen.detail && map[S.histOpen.e.id]) { S.histOpen.detail = map[S.histOpen.e.id]; render(); }
+  }).catch(() => {});
+}
+function setDashF(k, v) { S.dashF[k] = v; render(); }
+
+// Lieux dans un ordre fixe : ceux du catalogue, puis les anciens noms présents dans l'historique.
+function dashLieux() {
+  const out = S.init.lieux.slice();
+  S.dash.imports.forEach(e => { (S.dash.byImp[e.id] || [{ lieu: e.lieu }]).forEach(l => { if (l.lieu && out.indexOf(l.lieu) < 0) out.push(l.lieu); }); });
+  return out;
+}
+const lieuColor = (lieu) => SERIES[Math.max(0, dashLieux().indexOf(lieu)) % SERIES.length];
+
+// Mouvements (entrées) retenus par les filtres. Une facture traitée avant l'historique détaillé
+// compte pour sa valeur totale dans sa boutique par défaut.
+function dashData() {
+  const F = S.dashF;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const tsList = S.dash.imports.map(e => e.ts).filter(Boolean);
+  const since = F.per === 'tout' ? (tsList.length ? Math.min(...tsList) : today.getTime()) : today.getTime() - (Number(F.per) - 1) * DAY;
+  const imports = S.dash.imports.filter(e => (F.per === 'tout' || e.ts >= since) && (!F.fourn || e.emetteur === F.fourn) && (!F.type || e.type === F.type));
+  const mv = [];
+  imports.forEach(e => {
+    const lines = S.dash.byImp[e.id];
+    if (lines) lines.forEach(l => mv.push(Object.assign({ e }, l)));
+    else if (e.valeur) mv.push({ e, lieu: e.lieu, cle: '', produit: '', qte: 0, unite: '', valeur: e.valeur, legacy: true });
+  });
+  // Un ancien nom de lieu (avant renommage dans Toporder) n'apparaît que s'il a des entrées sur la période.
+  const lieux = dashLieux().filter(l => (!F.lieu || l === F.lieu) && (S.init.lieux.indexOf(l) >= 0 || mv.some(m => m.lieu === l)));
+  return { since, imports, mv: mv.filter(m => lieux.indexOf(m.lieu) >= 0), lieux };
+}
+
+// Découpage du graphique : jour (≤ 31 j), semaine (≤ 6 mois), sinon mois.
+function dashBuckets(since) {
+  const span = (Date.now() - since) / DAY;
+  const g = span <= 31 ? 'jour' : span <= 190 ? 'semaine' : 'mois';
+  const key = (ts) => {
+    const d = new Date(ts); d.setHours(0, 0, 0, 0);
+    if (g === 'semaine') d.setDate(d.getDate() - (d.getDay() + 6) % 7);
+    if (g === 'mois') return d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  };
+  const label = (k) => {
+    const [y, m, d] = k.split('-');
+    if (g === 'mois') return new Date(+y, +m - 1, 1).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+    return (g === 'semaine' ? 'sem. du ' : '') + d + '/' + m;
+  };
+  const keys = [];
+  for (let t = since; t <= Date.now(); t += DAY) { const k = key(t); if (keys[keys.length - 1] !== k) keys.push(k); }
+  return { g, key, label, keys };
+}
+
+function renderDashboard() {
+  if (S.dashLoading || (!S.dash && !S.dashError)) return `<div class="panel loading"><span class="spinner"></span> Chargement du tableau de bord…</div>`;
+  if (S.dashError) return `<div class="banner error"><div class="grow">${esc(S.dashError)}</div><button class="btn btn-sm" onclick="loadDashboard();render()">Réessayer</button></div>`;
+  const F = S.dashF || (S.dashF = { per: '30', lieu: '', fourn: '', type: '' });
+  const D = dashData();
+  S.dashView = D;
+  const fourns = [...new Set(S.dash.imports.map(e => e.emetteur))].sort();
+  const allLieux = dashLieux();
+
+  let h = `<div class="panel"><div class="panel-head">Entrées en stock par boutique<span class="spacer"></span>
+    ${S.dashReq ? '<span class="small muted" style="margin-right:8px"><span class="spinner"></span> mise à jour…</span>' : ''}<button class="btn btn-sm" onclick="loadDashboard();render()">Actualiser</button></div>
+    <div class="dash-filters">
+      <div class="field"><label class="label">Période</label><div class="seg">${[['7', '7 j'], ['30', '30 j'], ['90', '3 mois'], ['365', '12 mois'], ['tout', 'Tout']]
+        .map(([v, l]) => `<button class="${F.per === v ? 'on' : ''}" onclick="setDashF('per','${v}')">${l}</button>`).join('')}</div></div>
+      <div class="field"><label class="label">Boutique</label><select id="dfLieu" onchange="setDashF('lieu', this.value)"><option value="">Toutes</option>
+        ${allLieux.map(l => `<option ${l === F.lieu ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
+      <div class="field"><label class="label">Fournisseur</label><select id="dfFourn" onchange="setDashF('fourn', this.value)"><option value="">Tous</option>
+        ${fourns.map(f => `<option ${f === F.fourn ? 'selected' : ''}>${esc(f)}</option>`).join('')}</select></div>
+      <div class="field"><label class="label">Document</label><select id="dfType" onchange="setDashF('type', this.value)">
+        ${[['', 'Factures et BL'], ['Facture', 'Factures'], ['BL', 'Bons de livraison']].map(([v, l]) => `<option value="${v}" ${v === F.type ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    </div>`;
+
+  if (!S.dash.imports.length) return h + `<p class="muted">Aucune facture ni BL importé pour l'instant : le tableau de bord se remplira à chaque fichier d'import généré.</p></div>`;
+
+  // Indicateurs par boutique
+  const kpi = (lieu) => {
+    const m = D.mv.filter(x => !lieu || x.lieu === lieu);
+    const recs = new Set(m.map(x => x.e.id || x.e.row)).size;
+    const art = m.filter(x => x.unite && !/kilo/i.test(x.unite)).reduce((s, x) => s + x.qte, 0);
+    const kg = m.filter(x => /kilo/i.test(x.unite)).reduce((s, x) => s + x.qte, 0);
+    const lignes = m.filter(x => !x.legacy).length;
+    return { val: m.reduce((s, x) => s + x.valeur, 0), recs, art, kg, lignes };
+  };
+  const card = (name, color, k) => `<div class="kpi"><div class="k-name">${color ? `<span class="sw" style="background:${color}"></span>` : ''}${esc(name)}</div>
+    <div class="k-val">${fmtN(k.val, 0)} € <span class="small muted" style="font-family:var(--font-b);font-weight:500;letter-spacing:0">HT</span></div>
+    <div class="k-sub">${k.recs} réception${k.recs > 1 ? 's' : ''} · ${k.lignes} ligne${k.lignes > 1 ? 's' : ''} produit</div>
+    <div class="k-sub">+${fmtN(k.art, 0)} article${k.art >= 2 ? 's' : ''}${k.kg ? ` · +${fmtN(k.kg, 1)} kg` : ''}</div></div>`;
+  h += `<div class="kpis">${D.lieux.map(l => card(l, lieuColor(l), kpi(l))).join('')}${D.lieux.length > 1 ? card('Total', '', kpi('')) : ''}</div>`;
+
+  // Graphique : valeur HT entrée par période et par boutique
+  const B = dashBuckets(D.since);
+  h += `<div class="group-title" style="margin-top:4px">Valeur HT entrée en stock, par ${B.g}</div>
+    ${D.lieux.length > 1 ? `<div class="legend">${D.lieux.map(l => `<span><span class="sw" style="background:${lieuColor(l)}"></span>${esc(l)}</span>`).join('')}</div>` : ''}
+    <div class="chart" id="dashChart"></div>
+    <details><summary class="small" style="font-family:var(--font-b);font-size:12.5px;font-weight:600;margin:8px 0">Voir les données du graphique</summary>
+    <div class="table-wrap"><table style="min-width:0"><thead><tr><th>${B.g}</th>${D.lieux.map(l => `<th class="n">${esc(l)}</th>`).join('')}</tr></thead><tbody>
+    ${B.keys.map(k => { const vals = D.lieux.map(l => D.mv.filter(x => x.lieu === l && B.key(x.e.ts) === k).reduce((s, x) => s + x.valeur, 0));
+      return vals.some(Boolean) ? `<tr><td>${esc(B.label(k))}</td>${vals.map(v => `<td class="n">${v ? fmtE(v) : '—'}</td>`).join('')}</tr>` : ''; }).join('')}
+    </tbody></table></div></details>`;
+
+  // Journal : chaque import, avec l'incrément de chaque boutique
+  const rowsJ = D.imports.map(e => {
+    const m = D.mv.filter(x => x.e === e);
+    return { e, per: D.lieux.map(l => { const y = m.filter(x => x.lieu === l); return { n: y.filter(x => !x.legacy).length, v: y.reduce((s, x) => s + x.valeur, 0), any: y.length > 0 }; }) };
+  }).filter(r => r.per.some(p => p.any));
+  const shown = S.dashAll ? rowsJ : rowsJ.slice(0, 25);
+  h += `<div class="group-title">Journal des entrées <span class="muted small" style="font-family:var(--font-b);font-weight:500">${rowsJ.length} document${rowsJ.length > 1 ? 's' : ''} · cliquer pour le détail</span></div>`;
+  h += rowsJ.length ? `<div class="table-wrap"><table style="min-width:640px"><thead><tr><th>Importé le</th><th>Fournisseur</th><th>Document</th>
+      ${D.lieux.map(l => `<th class="n"><span class="sw" style="background:${lieuColor(l)};margin-right:6px"></span>${esc(l)}</th>`).join('')}</tr></thead><tbody>
+    ${shown.map(r => `<tr class="click" onclick="openHistoryEntry(S.dash.imports[${S.dash.imports.indexOf(r.e)}])"><td>${esc(r.e.traite)}</td><td class="lib">${esc(r.e.emetteur)}</td>
+      <td><span class="badge grey">${r.e.type === 'BL' ? 'BL' : 'Facture'}</span>${esc(r.e.numero)}${r.e.dateFacture ? `<div class="sub">du ${esc(r.e.dateFacture)}</div>` : ''}</td>
+      ${r.per.map(p => `<td class="n">${p.any ? `<b>+${fmtE(p.v)}</b><div class="sub">${p.n ? `${p.n} ligne${p.n > 1 ? 's' : ''}` : 'détail non disponible'}</div>` : '<span class="muted">—</span>'}</td>`).join('')}</tr>`).join('')}
+    </tbody></table></div>${rowsJ.length > shown.length ? `<button class="btn-link" style="margin-top:8px" onclick="S.dashAll=true;render()">Afficher les ${rowsJ.length} documents</button>` : ''}`
+    : `<p class="muted">Aucune entrée sur cette période.</p>`;
+
+  // Produits : quantités ajoutées par boutique, avec le stock actuel lu dans la dernière matrice
+  const prods = {};
+  D.mv.filter(x => !x.legacy).forEach(x => {
+    const k = x.cle || x.produit;
+    const p = prods[k] || (prods[k] = { cle: x.cle, produit: x.produit, unite: x.unite, valeur: 0, recs: new Set(), q: {} });
+    p.valeur += x.valeur; p.recs.add(x.e.id); p.q[x.lieu] = (p.q[x.lieu] || 0) + x.qte;
+  });
+  const q = normLabel(S.dashQ || '');
+  const plist = Object.values(prods).filter(p => !q || normLabel(p.produit).indexOf(q) >= 0).sort((a, b) => b.valeur - a.valeur);
+  const ci = S.dash.catalogueInfo;
+  h += `<div class="group-title">Produits réapprovisionnés <span class="spacer" style="flex:1"></span>
+    <input type="search" id="dashQ" placeholder="Rechercher un produit…" value="${esc(S.dashQ || '')}" oninput="S.dashQ=this.value;clearTimeout(S.dashT);S.dashT=setTimeout(render,250)" style="min-width:220px;font-weight:400"></div>`;
+  h += plist.length ? `<div class="table-wrap"><table style="min-width:640px"><thead><tr><th>Produit</th>
+      ${D.lieux.map(l => `<th class="n"><span class="sw" style="background:${lieuColor(l)};margin-right:6px"></span>${esc(l)}</th>`).join('')}<th class="n">Valeur HT</th><th class="n">Réceptions</th></tr></thead><tbody>
+    ${plist.slice(0, 30).map(p => `<tr><td class="lib">${esc(p.produit)}${p.cle ? `<div class="sub">Clé ${esc(p.cle)}</div>` : ''}</td>
+      ${D.lieux.map(l => { const st = ((S.init.stock || {})[l] || {})[p.cle];
+        return `<td class="n">${p.q[l] ? `<b>+${fmtN(p.q[l], 3)}</b> ${unitShort(p.unite)}` : '<span class="muted">—</span>'}${st != null ? `<div class="sub">stock : ${fmtN(st, 3)}</div>` : ''}</td>`; }).join('')}
+      <td class="n">${fmtE(p.valeur)}</td><td class="n">${p.recs.size}</td></tr>`).join('')}
+    </tbody></table></div>
+    <p class="small muted" style="margin-top:6px">${plist.length > 30 ? `30 premiers sur ${plist.length} (par valeur). ` : ''}« stock » = quantité restante dans la matrice Toporder${ci ? ` mise à jour le ${esc(ci.date)}` : ''} (les imports postérieurs n'y sont pas encore).</p>`
+    : `<p class="muted">${q ? 'Aucun produit ne correspond.' : 'Aucun produit sur cette période.'}</p>`;
+  return h + `</div>`;
+}
+
+// Barres groupées dessinées à la largeur réelle du conteneur (texte lisible sur mobile comme sur ordinateur).
+function drawDashChart() {
+  const el = $('dashChart'); if (!el || !S.dashView) return;
+  const D = S.dashView, B = dashBuckets(D.since);
+  const data = B.keys.map(k => D.lieux.map(l => D.mv.filter(x => x.lieu === l && B.key(x.e.ts) === k).reduce((s, x) => s + x.valeur, 0)));
+  const W = el.clientWidth || 800, H = 240, m = { l: 56, r: 8, t: 10, b: 26 };
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const max = Math.max(0, ...data.flat());
+  const step = (() => { const raw = (max || 100) / 4, p = Math.pow(10, Math.floor(Math.log10(raw))); return [1, 2, 2.5, 5, 10].map(x => x * p).find(x => x >= raw); })();
+  const top = step * 4, y = (v) => m.t + ph - v / top * ph;
+  const n = B.keys.length, gw = pw / n, k = D.lieux.length;
+  const bw = Math.max(2, Math.min(26, (gw * 0.72 - (k - 1) * 2) / k));
+  const every = Math.ceil(n / Math.max(1, Math.floor(pw / 64)));
+  const bar = (x, v, w) => { const yy = y(v), h = m.t + ph - yy; if (h <= 0) return ''; const r = Math.min(4, w / 2, h);
+    return `M${x},${yy + h}V${yy + r}Q${x},${yy} ${x + r},${yy}H${x + w - r}Q${x + w},${yy} ${x + w},${yy + r}V${yy + h}Z`; };
+  let svg = `<svg width="${W}" height="${H}" role="img" aria-label="Valeur HT entrée en stock par ${B.g} et par boutique">`;
+  for (let i = 0; i <= 4; i++) {
+    const v = step * i, yy = y(v);
+    svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}" stroke="${i ? '#EFEBE4' : '#CFC8BB'}" stroke-width="1"/>
+      <text x="${m.l - 8}" y="${yy + 4}" text-anchor="end">${fmtN(v, 0)} €</text>`;
+  }
+  data.forEach((vals, i) => {
+    const x0 = m.l + i * gw + (gw - (k * bw + (k - 1) * 2)) / 2;
+    svg += `<rect class="hb" data-i="${i}" x="${m.l + i * gw}" y="${m.t}" width="${gw}" height="${ph}" fill="transparent"/>`;
+    vals.forEach((v, j) => { if (v > 0) svg += `<path d="${bar(x0 + j * (bw + 2), v, bw)}" fill="${lieuColor(D.lieux[j])}" pointer-events="none"/>`; });
+    if (i % every === 0) svg += `<text x="${m.l + i * gw + gw / 2}" y="${H - 8}" text-anchor="middle">${esc(B.label(B.keys[i]).replace('sem. du ', ''))}</text>`;
+  });
+  svg += `</svg><div class="tip hidden" id="dashTip"></div>`;
+  el.innerHTML = svg;
+  const tip = $('dashTip');
+  const show = (ev) => {
+    const r = ev.target.closest && ev.target.closest('.hb'); if (!r) return;
+    el.querySelectorAll('.hb').forEach(b => b.setAttribute('fill', 'transparent'));
+    r.setAttribute('fill', 'rgba(26,26,26,.04)');
+    const i = Number(r.dataset.i), key = B.keys[i];
+    const recs = new Set(D.mv.filter(x => B.key(x.e.ts) === key).map(x => x.e.id || x.e.row)).size;
+    tip.innerHTML = `<div class="t-h">${esc(B.label(key))}</div>${D.lieux.map((l, j) => `<div class="t-r"><span><span class="sw" style="background:${lieuColor(l)}"></span>${esc(l)}</span><b>${fmtE(data[i][j])}</b></div>`).join('')}
+      <div class="sub" style="margin-top:4px">${recs} réception${recs > 1 ? 's' : ''}</div>`;
+    tip.classList.remove('hidden');
+    const cx = m.l + i * gw + gw / 2, tw = tip.offsetWidth;
+    tip.style.left = Math.max(0, Math.min(W - tw, cx + 12 + tw > W ? cx - tw - 12 : cx + 12)) + 'px';
+    tip.style.top = '8px';
+  };
+  const svgEl = el.querySelector('svg');
+  svgEl.addEventListener('mousemove', show);
+  svgEl.addEventListener('click', show);
+  svgEl.addEventListener('mouseleave', () => { tip.classList.add('hidden'); el.querySelectorAll('.hb').forEach(b => b.setAttribute('fill', 'transparent')); });
+}
+window.addEventListener('resize', () => { clearTimeout(S.rsT); S.rsT = setTimeout(() => { if (S.view === 'dashboard') drawDashChart(); }, 150); });
+
+// Fichier d'import d'un document de l'historique, refait à l'identique depuis les lignes enregistrées.
+async function redownload(id, btn) {
+  const e = (S.hist || []).find(x => x.id === id);
+  const doc = e ? `${e.type === 'BL' ? 'du BL' : 'de la facture'} ${e.emetteur} n° ${e.numero}` : '';
+  const ok = await dialog({
+    tone: 'warn', title: 'Ce fichier semble déjà avoir été importé',
+    body: `<p>Le fichier d'import ${esc(doc)} a été généré le ${esc(e ? e.traite : '')}${e && e.auteur ? ' par ' + esc(e.auteur) : ''}.</p>
+      <p><b>Vérifiez dans Toporder qu'il n'a pas déjà été importé.</b> S'il l'a été, ne le réimportez pas : le stock serait compté en double.</p>`,
+    ok: 'Télécharger quand même', cancel: 'Annuler'
+  });
+  if (ok !== true) return;
+  const label = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>'; }
+  try {
+    const files = await call('retelechargerImport', id);
+    files.forEach(f => download(f));
+    toast(files.length > 1 ? files.length + ' fichiers téléchargés' : 'Fichier téléchargé');
+  } catch (err) { showError('Téléchargement impossible', err); }
+  if (btn) { btn.disabled = false; btn.textContent = label; }
+}
+function download(f) {
+  const bytes = Uint8Array.from(atob(f.base64), c => c.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  const a = document.createElement('a'); a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+function downloadFile(i, j) { download(S.queue[i].result.files[j]); }
+// Ouvre la facture déposée depuis le navigateur (elle n'est pas conservée sur Drive).
+function viewInvoice() {
+  const url = URL.createObjectURL(cur().file);
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+// ── Glisser-déposer ────────────────────────────────────────────────
+$('fileInput').addEventListener('change', ev => { addFiles(ev.target.files); ev.target.value = ''; });
+function bindDrop() {
+  const d = $('drop'); if (!d) return;
+  d.addEventListener('dragover', e => { e.preventDefault(); d.classList.add('over'); });
+  d.addEventListener('dragleave', () => d.classList.remove('over'));
+  d.addEventListener('drop', e => { e.preventDefault(); d.classList.remove('over'); addFiles(e.dataTransfer.files); });
+}
+window.addEventListener('beforeunload', e => { if (S.queue.some(q => q.status === 'pret' || q.status === 'lecture')) { e.preventDefault(); e.returnValue = ''; } });
+
+load();
+</script>
 </body>
 </html>
